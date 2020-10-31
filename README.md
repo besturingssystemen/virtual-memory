@@ -61,13 +61,11 @@ Onderstaande figuur, uit hoofdstuk 2 van het xv6-boek, toont de virtual memory l
 
 ![xv6-virtual-layout](img/xv6-virtual-layout.png)
 
-Een pagina die in de virtuele adresruimte van ieder xv6-proces geladen wordt, is de *trampoline*. In deze sessie gaan we in detail bekijken waarom deze pagina daar gemapt staat.
-
-Op dit moment zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
+Een pagina die in de virtuele adresruimte van ieder xv6-proces geladen wordt, is de *trampoline*. In deze sessie gaan we in detail bekijken waarom deze pagina daar gemapt staat. Op dit moment zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
 
 Neem aan dat:
 1. De trampolinepagina in het geheugen gemapt staat in de frame met nummer 1234 (`PPN` = 1234).
-2. Het virtuele adres `MAXVA` moet verwijzen naar de laatste byte van deze trampolinepagina (dit is het geval!) 
+2. Het virtuele adres `MAXVA` moet verwijzen naar de laatste byte van deze trampolinepagina.
    
 Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `MAXVA` probeert te dereferencen, de RISC-V hardware dit kan vertalen naar de laatste byte van frame 1234.
 
