@@ -1,5 +1,85 @@
-# virtual-memory
+# Virtual Memory
 
+- [Virtual Memory](#virtual-memory)
+  - [Voorbereiding](#voorbereiding)
+- [GitHub classroom](#github-classroom)
+- [Introductie](#introductie)
+- [Pagina mappen](#pagina-mappen)
+
+## Voorbereiding
+
+Ter voorbereiding van deze oefenzitting wordt je verwacht:
+  * De oefenzitting system calls te hebben voltooid.
+  * Hoofdstuk 3 van het [xv6 boek](https://github.com/besturingssystemen/xv6-riscv) te hebben gelezen.
+  * Begrip te hebben van de theorie rond *virtual memory*, *paging* en *page tables*
+    * Weten hoe een *virtual address* vertaald kan worden naar een *physical address* via page tables
+
+
+Onderstaande video kan je bekijken om meer vertrouwd te geraken met het concept paging:
+
+[![Bekijk de video](https://img.youtube.com/vi/JgTXJ-ZV5Zw/hqdefault.jpg)](https://www.youtube.com/watch?v=JgTXJ-ZV5Zw)
+
+Daarnaast kan je:
+* Hoofdstuk 8 in Siblerschatz raadplegen
+* De online les over Hoofdstuk 8, deel 3 bekijken op Toledo
+
+# GitHub classroom
+
+**TODO**
+
+
+# Introductie
+
+**TODO**
+
+# Pagina mappen
+
+Voor we duiken in de code van xv6 willen we eerst verzekeren dat je begrijpt op welke manier een besturingssysteem ervoor kan zorgen dat een specifiek virtueel adres van een proces gemapt wordt op een fysiek adres in het werkgeheugen.
+
+* Neem een stuk papier en geef antwoord op de volgende vragen.
+
+> :bulb: Op het einde van deze sectie kunnen jullie de antwoorden op deze vragen terugvinden. Dit is echter een zelftest om te kijken of je de concepten goed snapt. Door meteen naar de antwoorden te kijken zal je voor jezelf niet kunnen ontdekken welke delen nog onduidelijk zouden zijn. Indien je begrip van de concepten onvoldoende is zal je waarschijnlijk in de problemen komen bij de permanente evaluatie.
+
+
+Herinnner je dat een virtueel adres in een RISC-V processor die het Sv39 schema volgt, 39 bits lang is. xv6 is ontworpen voor dit RISC-V schema.
+
+Onderstaande voorstelling vinden we terug in de [RISC-V privileged specification](https://riscv.org/technical/specifications/):
+
+![Sv39-scheme](img/sv39-addresses.png)
+
+
+* Wat is het bereik van virtuele adressen in Sv39 (`[minimale adres, maximale adres]`)?
+
+In xv6 worden slechts 38 bits van de 39 bits effectief gebruikt. Het maximale virtuele adres in xv6 wordt `MAXVA` genoemd.
+
+* Wat is de waarde van `MAXVA`?
+* Hoeveel gigabyte werkgeheugen kan dus maximaal geaddresseerd worden door een xv6-proces?
+
+> :bulb: Interessant weetje: 32-bit machines waren voor een lange periode de meest voorkomende consumentenmachines. 32-bit machines hebben registers van 32-bit lang. Er werd dus ook meestal gekozen om virtuele adressen 32-bit lang te maken. Je kan nu dus uitrekenen wat het maximaal geheugen is dat processen op dit soort machines konden adresseren (~4gb). Dit bleek voor sommige processen te weinig te zijn, een belangijke reden om van 32-bit naar 64-bit te schakelen.
+
+Stel dat xv6, bijvoorbeeld met behulp van de system call `exec`, een nieuw proces inlaadt in het geheugen. Op dat moment moet xv6 de pagina's van dit proces in het fysieke geheugen plaatsen, en vervolgens een virtueel-naar-fysieke mapping opstellen. Deze mapping gebeurt niet willekeurig.
+Onderstaande figuur, uit hoofdstuk 2 van het xv6-boek, toont de virtual memory layout van een process.
+
+![xv6-virtual-layout](img/xv6-virtual-layout.png)
+
+Een pagina die in de virtuele adresruimte van ieder xv6-proces geladen wordt, is de *trampoline*. In deze sessie gaan we in detail bekijken waarom deze pagina daar gemapt staat.
+
+Op dit moment zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
+
+Neem aan dat:
+1. De trampolinepagina in het geheugen gemapt staat in de frame met nummer 1234 (`PPN` = 1234).
+2. Het virtuele adres `MAXVA` moet verwijzen naar de laatste byte van deze trampolinepagina (dit is het geval!) 
+   
+Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `MAXVA` probeert te dereferencen, de RISC-V hardware dit kan vertalen naar de laatste byte van frame 1234.
+
+* Welke stappen moet het besturingssysteem zetten om ervoor te zorgen dat deze adresvertaling correct kan uitgevoerd worden?  Neem aan dat de top-level page table reeds bestaat en dat dit de enige page table is die al gealloceerd is voor dit proces.
+  * Hoeveel page tables moet het besturingssysteem aanmaken?
+  * Welke waarden moeten in deze tables ingevuld worden?
+
+> :bulb: De vraag kan ook zo gesteld worden: hoe kan een besturingssysteem de trampolinepagina mappen op frame 1234?
+
+
+<!--
 ## Exec
 
 **TODO** ELF-comments van Job in Slack verwerken
@@ -123,3 +203,4 @@ De linker is verantwoordelijk om het entry point van een programma correct te be
 
 In `xv6` wordt in de `Makefile` de `-e` flag opgegeven met als waarde `main`. De uitvoering van een xv6 executable zal dus starten bij het symbool `main`.
 
+-->
