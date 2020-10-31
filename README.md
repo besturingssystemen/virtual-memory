@@ -5,6 +5,7 @@
 - [GitHub classroom](#github-classroom)
 - [Introductie](#introductie)
 - [Pagina mappen](#pagina-mappen)
+- [Scratchpad](#scratchpad)
 
 ## Voorbereiding
 
@@ -74,6 +75,47 @@ Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `
   * Welke waarden moeten in deze tables ingevuld worden?
 
 > :bulb: De vraag kan ook zo gesteld worden: hoe kan een besturingssysteem de trampolinepagina mappen op frame 1234?
+
+
+# Scratchpad
+
+* Process lifecycle revisit
+  * Fork
+  * Exec
+  * Sbrk
+    * **Oefening** oef 2 uit xv6 boek H3: sbrk(1)
+
+* Praten over speciale mappings
+  * Trampoline (many to one)
+  * Null pointer exception (no mapping)
+    * **Oefening** unmap adres 0 (xv6 H3 ex4)
+  * Identity mapping van kernel
+    * Software page table walk
+  * VDSO 
+    * **oefening** implement
+  * Shared memory
+
+* Praten over security
+  * Inter-proces: isolatie
+    * Kernel vs user space: eigen page tables
+    * Verschillende processen: eigen page tables
+      * Reflecteren over oefenzitting 1 permanente evaluatie
+  * Intra-proces
+    * Accces control binnen proces (RWX)
+  * **Oefening**
+    * Doel: begrip krijgen over isolation via virtual memory
+    * Vaag idee (break isolation)
+      * 2 syscalls
+        * get physical adress from virtual
+        * read physical address
+      * Twee processen: secret, attacker
+      * Secret bewaart geheime data
+      * Secret zoekt physical address van geheime data
+      * Secret pipet dit adres naar attacker (lol)
+      * Attacker gebruikt read physical address en leest secret
+
+* Permanente evaluatie
+  * Idee: mmap variant voor user space?
 
 
 <!--
