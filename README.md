@@ -86,7 +86,7 @@ Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `
 De code in xv6 waarmee de page tables aangemaakt worden is helaas weinig illustratief.
 Page tables volgen een zeer specifieke structuur waarin elke bit een eigen betekenis heeft, zodat de RISC-V Memory Management Unit (MMU) deze efficiënt in hardware kan doorlopen.
 
-xv6 gebruikt een hoop [C preprocessor](https://en.wikipedia.org/wiki/C_preprocessor) definities om deze page tables correct te initialiseren en bewerken. In de header `kernel/riscv.h` worden vele van deze preprocessor functies gedefinieerd. 
+xv6 gebruikt een hoop [C preprocessor](https://en.wikipedia.org/wiki/C_preprocessor) definities om deze page tables correct te initialiseren en bewerken. In de header [`kernel/riscv.h`][riscv] worden vele van deze preprocessor functies gedefinieerd. 
 De geïnteresseerden kunnen eens een kijkje nemen in deze header.
 We gaan hier verder niet dieper op in.
 
@@ -340,3 +340,4 @@ In `xv6` wordt in de `Makefile` de `-e` flag opgegeven met als waarde `main`. De
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
 [mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
 [walk]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L81
+[riscv]: https://github.com/besturingssystemen/xv6-riscv/blob/d9160fb4b98e3ce04d3928c1fbd2ec26b3cc746a/kernel/riscv.h
