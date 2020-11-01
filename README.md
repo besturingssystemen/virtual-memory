@@ -10,7 +10,7 @@
 
 ## Voorbereiding
 
-Ter voorbereiding van deze oefenzitting wordt je verwacht:
+Ter voorbereiding van deze oefenzitting word je verwacht:
   * De oefenzitting system calls te hebben voltooid.
   * Hoofdstuk 3 van het [xv6 boek](https://github.com/besturingssystemen/xv6-riscv) te hebben gelezen.
   * Begrip te hebben van de theorie rond *virtual memory*, *paging* en *page tables*
