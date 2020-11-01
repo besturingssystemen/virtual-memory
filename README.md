@@ -6,6 +6,9 @@
 - [Introductie](#introductie)
 - [Pagina mappen](#pagina-mappen)
   - [Page table code in xv6](#page-table-code-in-xv6)
+- [Levenscyclus van een proces - deel 2](#levenscyclus-van-een-proces---deel-2)
+  - [Fork](#fork)
+  - [Exec](#exec)
 - [Scratchpad](#scratchpad)
 
 ## Voorbereiding
@@ -82,6 +85,10 @@ Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `
 > :bulb: De vraag kan ook zo gesteld worden: hoe kan een besturingssysteem de trampolinepagina mappen op frame 1234?
 
 ## Page table code in xv6
+
+**TODO** Warning over identity map
+
+**TODO** bitvoorsteling PTE en ook flags kort bespreken
 
 De code in xv6 waarmee de page tables aangemaakt worden is helaas weinig illustratief.
 Page tables volgen een zeer specifieke structuur waarin elke bit een eigen betekenis heeft, zodat de RISC-V Memory Management Unit (MMU) deze efficiënt in hardware kan doorlopen.
@@ -169,6 +176,75 @@ if(*pte & PTE_V)
 We hebben nu een zicht op hoe page tables gemapt worden in de code van xv6.
 Tijd om te kijken hoe dit alles gebruikt wordt.
 
+# Levenscyclus van een proces - deel 2
+
+In de [sessie over os interfaces](https://github.com/besturingssystemen/os-interfaces) hebben jullie in de permanente evaluatie ontdekt dat wanneer een proces geforked wordt, je plots twee processen hebt met *dezelfde* adressen maar toch mogelijks andere waarden op deze adressen.
+
+* Verklaar dit aan de hand van je kennis over virtual memory
+
+In de [sessie over system calls](https://github.com/besturingssystemen/system-calls#levenscyclus-proces) hebben we jullie vervolgens verteld hoe een proces aangemaakt wordt met `fork` en een taak toegewezen krijgt met `exec`.
+
+Ondertussen hebben we voldoende informatie om te duiken in de implementatie van deze functies.
+
+## Fork
+
+* Bekijk de implementatie van [`fork`][fork] in [`kernel/proc.c`][proc]
+
+> :information_source: In de komende delen zullen we soms code tegenkomen waarin gebruik wordt gemaakt van locks. Hierop zullen we dieper ingaan in de sessie over synchronisatie.
+
+De eerste functie die `fork` oproept is [`allocproc`][allocproc].
+Hier wordt het nieuwe proces toegevoegd in de process table, een structuur die gebruikt wordt om alle actieve processen te bewaren. 
+Het proces krijgt een nieuwe `pid` toegewezen.
+Daarnaast worden de nodige datastructuren aangemaakt die het besturingssysteem bewaart per proces:
+* De trapframe
+* Een lege top-level page table
+  * We maken dus een nieuwe, lege virtuele adresruimte
+* Een context. Hier gaan we dieper op in gedurende de sessie over scheduling
+
+Op dit moment heeft ons nieuwe proces dus nog een lege virtuele adresruimte.
+We weten echter dat fork een kopie maakt van de oude adresruimte.
+Alle adressen die gemapt waren in het parent proces moeten ook gemapt worden in het child proces.
+Elk van die adressen moet vervolgens ook dezelfde waarde toegekend krijgen.
+
+* Denk even na welke stappen je conceptueel zou moeten nemen om de virtuele adresruimte te kopiëren zoals hierboven beschreven
+
+We kunnen nu kijken of je assumpties correct waren.
+De functie `uvmcopy` voert deze kopie uit.
+
+* Bekijk de functie [`uvmcopy`][uvmcopy] in `kernel/vm.c`
+
+De functie krijgt drie parameters: de paginatabel van de parent (`old`), de paginatabel van de child (`new`), en de grootte van het geheugen van het parent-proces (`sz`).
+
+> In xv6 wordt ervoor gezorgd dat alle gebruikte virtuele adressen in het bereik [0, `sz`-1] vallen. `sz` kan worden vergroot gedurende de levensduur van een proces met behulp van de system call `sbrk`.
+
+Vervolgens zal `uvmcopy` itereren over alle gemapte pagina's in dat bereik.
+Per pagina worden de volgende stappen uitgevoerd:
+1. Eerst wordt door middel van een software page walk de correcte page table entry gevonden
+   * Uit deze entry wordt (met `PTE2PA`) het fysieke adres van de frame gehaald, waar de pagina gemapt staat
+   * Daarnaast worden ook de flags van de pagina opgehaald met `PTE_FLAGS`
+2. Vervolgens wordt een lege frame gevonden in het geheugen met behulp van `kalloc()`
+3. Met `memmove` wordt de volledige inhoud van de pagina van de parent gekopieerd naar de nieuw gealloceerde pagina
+4. Met `mappages` wordt deze nieuwe pagina gemapt op de zonet aangemaakte frame. Hierbij wordt er dus voor gezorgd dat het virtuele adres van de pagina naar de nieuwe frame mapt in het child-proces.
+
+Hopelijk was je zelf ook tot gelijkaardige stappen gekomen in de voorgaande denkoefening. Laten we terugspringen naar fork.
+Nu we de virtuele adresruimte hebben gekopieerd, resteert ons voornamelijk nog wat boekhouding. 
+
+We kopiëren het veld `sz` in de `struct proc` van parent naar child en we zetten laten het `parent`-veld van de child verwijzen naar het parent-proces.
+We kopiëren de bewaarde registers in het `trapframe`.
+Door `a0` te overschrijven in de child zorgen we ervoor dat `fork` 0 zal returnen in het geforkte proces.
+
+We zorgen ervoor dat het child-proces eigen verwijzingen heeft naar elke open file van het parent proces, zodat wanneer het parent proces een file zou sluiten, xv6 nog steeds weet dat dit bestand open moet blijven (want de child kan dit bestand nog nodig hebben).
+
+Ten slotte wordt de naam van het proces gekopieerd, de `pid` van de child wordt correct ingesteld en de `state` wordt op `RUNNABLE` gezet (hierover meer in de scheduling oefenzitting).
+
+Fork returned het `pid` van de parent in het parent-proces, vandaar ten slotte de return statement.
+
+## Exec
+
+**TODO** - verwijzen naar het boek (goed uitlegd) of zelf nog meer in detail gaan? De gehele ELF-uitleg staat nog in comments onderaan, die zou hier kunnen komen, maar dit lijkt me op dit moment een te grote omleiding van de essentie: virtual memory.
+
+
+
 
 # Scratchpad
 
@@ -211,6 +287,14 @@ Tijd om te kijken hoe dit alles gebruikt wordt.
   * Idee: mmap variant voor user space?
 
 
+[vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
+[mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
+[walk]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L81
+[riscv]: https://github.com/besturingssystemen/xv6-riscv/blob/d9160fb4b98e3ce04d3928c1fbd2ec26b3cc746a/kernel/riscv.h#L323
+[proc]: https://github.com/besturingssystemen/xv6-riscv/blob/2821d43cc95b4f9faf79ff94daa5d3a8ea5e7861/kernel/proc.c
+[fork]: https://github.com/besturingssystemen/xv6-riscv/blob/2821d43cc95b4f9faf79ff94daa5d3a8ea5e7861/kernel/proc.c#L244
+[allocproc]: https://github.com/besturingssystemen/xv6-riscv/blob/2821d43cc95b4f9faf79ff94daa5d3a8ea5e7861/kernel/proc.c#L100
+[uvmcopy]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L298
 <!--
 ## Exec
 
@@ -336,8 +420,3 @@ De linker is verantwoordelijk om het entry point van een programma correct te be
 In `xv6` wordt in de `Makefile` de `-e` flag opgegeven met als waarde `main`. De uitvoering van een xv6 executable zal dus starten bij het symbool `main`.
 
 -->
-
-[vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
-[mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
-[walk]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L81
-[riscv]: https://github.com/besturingssystemen/xv6-riscv/blob/d9160fb4b98e3ce04d3928c1fbd2ec26b3cc746a/kernel/riscv.h#L323
