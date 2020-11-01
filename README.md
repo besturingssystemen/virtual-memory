@@ -92,7 +92,7 @@ We gaan hier verder niet dieper op in.
 
 De code om pagina's te mappen is al illustratiever.
 
-* Bekijk de functie `mappages` in `kernel/vm.c`. De code wordt hieronder uitgeklaard.
+* Bekijk de functie [`mappages`][mappages] in [`kernel/vm.c`][vm]. De code wordt hieronder uitgeklaard.
 
 Deze functie probeert een bereik van virtuele adressen `[va , va + size - 1]` te mappen op fysische adressen `[pa, pa + size - 1]`.
 
@@ -102,7 +102,7 @@ Elk proces heeft een eigen *virtual address space*.
 Het `satp`-register wijst hiervoor telkens naar de top-level page table van het huidige proces.
 `satp` naar een andere page table laten verwijzen zorgt er dan ook voor dat de volledige adresvertaling anders verloopt.
 
-De eerste parameter van `mappages` is een `pagetable_t`. Deze parameter bevat het fysieke adres van de top-level page table van de *virtual address space* waarin je wil mappen.
+De eerste parameter van [`mappages`][mappages] is een `pagetable_t`. Deze parameter bevat het fysieke adres van de top-level page table van de *virtual address space* waarin je wil mappen.
 
 
 Merk ook op dat je niet zomaar één adres kan mappen.
@@ -120,15 +120,15 @@ In woorden doet de `for`-lus het volgende:
 3. `PA2PTE` wordt gebruikt om het fysieke adres (waarop het virtuele adres gemapt moet worden) om te zetten naar een geldige page table entry. Dit resultaat wordt bewaard in de correcte page table. De pagina is nu gemapt.
 
 
-Stel dat je de trampolinepagina zou moeten mappen met behulp van de functie `mappages`.
+Stel dat je de trampolinepagina zou moeten mappen met behulp van de functie [`mappages`][mappages].
 
   * Welke waarden zou je toekennen aan de parameters `va` en `size`?
 
 We doen nu een poging de software page-table walk te begrijpen. 
 
-  * Bekijk de functie `walk` in `kernel/vm.c`.
+  * Bekijk de functie [`walk`][walk] in `kernel/vm.c`.
 
-De functie `walk` zoekt de page table entry overeenkomstig met de pagina van het gegeven virtuele adres.
+De functie [`walk`][walk] zoekt de page table entry overeenkomstig met de pagina van het gegeven virtuele adres.
 De parameter `alloc` bepaalt wat er moet gebeuren indien een bepaalde page table nog niet bestaat.
 Indien `alloc` truthy is zal op dat moment een nieuwe paginatabel gealloceerd worden.
 
@@ -164,7 +164,7 @@ Dit gebeurt met behulp van de bitwise and-operator `&`:
 if(*pte & PTE_V)
 ```
 
-> :information_source: Een bitwise AND-operatie kan gebruikt worden om te controleren of een bepaalde bit van een binair getal `1` is. Stel dat we willen controleren dat bit 2  (geteld van rechts naar links) van een willekeurig binair getal `b` op `1` staat. We stellen nu het volgende binaire getal op: `0000000010` (`1` op positie 2 en 4). Overtuig jezelf dat indien `b & 0000000010` niet gelijk is aan `0`, `b` een `1` heeft op positie 2.
+> :information_source: Een bitwise AND-operatie kan gebruikt worden om te controleren of een bepaalde bit van een binair getal `1` is. Stel dat we willen controleren dat bit 2  (geteld van rechts naar links) van een willekeurig binair getal `b` op `1` staat. We stellen nu het volgende binaire getal op: `0000000010` (`1` op positie 2). Overtuig jezelf dat indien `b & 0000000010` niet gelijk is aan `0`, `b` een `1` heeft op positie 2.
 
 We hebben nu een zicht op hoe page tables gemapt worden in de code van xv6.
 Tijd om te kijken hoe dit alles gebruikt wordt.
@@ -336,3 +336,7 @@ De linker is verantwoordelijk om het entry point van een programma correct te be
 In `xv6` wordt in de `Makefile` de `-e` flag opgegeven met als waarde `main`. De uitvoering van een xv6 executable zal dus starten bij het symbool `main`.
 
 -->
+
+[vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
+[mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
+[walk]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L81
