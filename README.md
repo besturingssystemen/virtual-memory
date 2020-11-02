@@ -10,10 +10,16 @@
   - [Inter-process isolatie](#inter-process-isolatie)
   - [Kernel isolatie](#kernel-isolatie)
 - [Levenscyclus proces](#levenscyclus-proces)
-  - [Exec](#exec)
-  - [Fork](#fork)
+  - [exec](#exec)
+  - [fork](#fork)
+  - [sbrk](#sbrk)
 - [Toepassingen van Virtual Memory](#toepassingen-van-virtual-memory)
-- [Permanente evaluatie](#permanente-evaluatie)
+  - [Trampoline](#trampoline)
+  - [Null-pointer exception](#null-pointer-exception)
+  - [Guard pages](#guard-pages)
+  - [Shared memory](#shared-memory)
+  - [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
+- [TODO list](#todo-list)
 
 ## Voorbereiding
 
@@ -91,6 +97,8 @@ Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `
 
 > :bulb: De vraag kan ook zo gesteld worden: hoe kan een besturingssysteem de trampolinepagina mappen op frame 1234?
 
+**TODO** Time box warning
+
 ## Page tables in xv6 en RISC-V
 
 > :information_source: Het mappen van pagina's door het correct alloceren en invullen van page's gebeurt uiteraard ook in de xv6 code. Deze code is helaas weinig illustratief. Voor de geïnteresseerden geven we [hier](page-table-code/README.md) meer uitleg. Volg echter eerst de rest van de oefenzitting.
@@ -143,7 +151,7 @@ Processen mogen elkaars geheugen niet uitlezen, en zeker niet bewerken.
 
 ## Kernel isolatie
 
-**TODO** Write
+**TODO**
 
 # Levenscyclus proces
 
@@ -155,7 +163,7 @@ In de [sessie over system calls](https://github.com/besturingssystemen/system-ca
 
 Ondertussen hebben we voldoende informatie om te duiken in de implementatie van deze functies.
 
-## Exec
+## exec
 
 > **TODO**  Korte uitleg geven over werking exec, verder verwijzen naar het boek en eventueel naar [exec/README.md](exec/README.md)
 
@@ -163,7 +171,7 @@ Ondertussen hebben we voldoende informatie om te duiken in de implementatie van 
 
 **TODO: Oefening** R/W/X .rodata (etc) fixen bij exec met tweede pass
 
-## Fork
+## fork
 
 * Bekijk de implementatie van [`fork`][fork] in [`kernel/proc.c`][proc]
 
@@ -216,6 +224,10 @@ Ten slotte wordt de naam van het proces gekopieerd, de `pid` van de child wordt 
 
 Fork returned het `pid` van de parent in het parent-proces, vandaar ten slotte de return statement.
 
+## sbrk
+
+**TODO**
+
 # Toepassingen van Virtual Memory
 
 Het concept virtual memory zou ondertussen heel duidelijk moeten zijn.
@@ -234,18 +246,33 @@ Enkele van deze toepassingen hebben we reeds theoretisch bekeken:
 
 * **TODO** Interprocess isolatie (al besproken)
 
-> **TODO** Dit hier bespreken als toepassingen
-> * Trampoline
-> * Nullpointer
-> * Guard page
-> * Shared memory
+## Trampoline
 
-**TODO** Identity map op gepaste plaats bespreken
+**TODO**
 
-# Permanente evaluatie
+## Null-pointer exception
+
+**TODO**
+
+## Guard pages
+
+**TODO**
+
+## Shared memory
+
+**TODO**
+
+## Permanente evaluatie: VDSO
 
 **TODO** VDSO
 
+# TODO list
+
+Alle niet-inlined todo's:
+
+**TODO** Identity map op gepaste plaats bespreken
+
+**TODO** Page faults bespreken (evt met oefening, cause register, kan bij de .rodata exercise evt)
 
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
 [mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
