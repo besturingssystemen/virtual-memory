@@ -1,7 +1,6 @@
-# Virtual Memory
+In deze oefenzitting leren jullie over virtual memory.
 
-- [Virtual Memory](#virtual-memory)
-  - [Voorbereiding](#voorbereiding)
+- [Voorbereiding](#voorbereiding)
 - [GitHub classroom](#github-classroom)
 - [Introductie](#introductie)
 - [Pagina mappen](#pagina-mappen)
@@ -21,7 +20,7 @@
   - [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
 - [TODO list](#todo-list)
 
-## Voorbereiding
+# Voorbereiding
 
 Ter voorbereiding van deze oefenzitting word je verwacht:
   * De oefenzitting system calls te hebben voltooid.
