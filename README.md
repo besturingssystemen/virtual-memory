@@ -90,7 +90,7 @@ In een toekomstige sessie gaan we in detail bekijken waarom deze pagina daar gem
 Vandaag zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
 
 Neem aan dat:
-1. De trampolinepagina in het geheugen gemapt staat in de frame met nummer 1234 (`PPN` = 1234).
+1. De trampolinepagina in het geheugen staat in het frame met nummer 1234 (`PPN` = 1234).
 2. Het virtuele adres `MAXVA-PGSIZE` (0x3ffffff000) moet verwijzen naar de eerste byte van deze trampolinepagina.
    
 Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `MAXVA-PGZISE` probeert te dereferencen, de RISC-V hardware dit kan vertalen naar de eerste byte van frame 1234.
@@ -106,7 +106,7 @@ Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `
 ## Page tables in xv6 en RISC-V
 
 In xv6 worden pagina's gemapt met behulp van de functie `mappages`.
-Dit is de definitie van deze functie:
+Dit is de declaratie van deze functie:
 
 ```c
 // Create PTEs for virtual addresses starting at va that refer to
@@ -123,7 +123,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm);
 
 Stel dat je de trampolinepagina zou moeten mappen met behulp van de functie [`mappages`][mappages].
 
-  * Welke waarden zou je toekennen aan de parameters `va` en `size`?
+  * Welke waarden zou je toekennen aan de parameters `va`, `size` en `pa`?
 
 ## Structuur page table
 
@@ -133,12 +133,12 @@ Page tables volgen een zeer specifieke structuur waarin elke bit een eigen betek
 
 Een page table kan je in het geheugen telkens terugvinden in het begin van een frame.
 Elke page table bestaat uitsluitend uit 512 page table entries (PTE).
-Een page table entry is niets anders dan een lange bitstring (32 bits) waarbij elke bit (of groep van bits) een eigen betekenis heeft.
+Een page table entry is niets anders dan een lange bitstring (64 bits) waarbij elke bit (of groep van bits) een eigen betekenis heeft.
 
 Beantwoordt de volgende vragen:
 
-* We weten dat een page table 512 entries heeft en we weten dat elke entry 32 bit groot is. Hoe groot is een volledige page table?
-* We weten dat we een offset van 12 bit gebruiken om een byte in een frame of pagina te addresseren. Hoe groot zijn pagina's of frames in Sv32?
+* We weten dat een page table 512 entries heeft en we weten dat elke entry 64 bit groot is. Hoe groot is een volledige page table?
+* We weten dat we een offset van 12 bit gebruiken om een byte in een frame of pagina te addresseren. Hoe groot zijn pagina's of frames in Sv39?
 * We weten dat een page table geplaatst wordt aan de start van een frame. Past een page table in één enkele frame?
 
 
@@ -151,7 +151,7 @@ Bovenstaande figuur geeft de bit-layout weer van zo'n page table entry.
 
 Laten we de verschillende bits van een page table entry verder bespreken:
 
-* `PPN`: Bits 10 - 31 zijn de 21 bits die naar een frame verwijzen. Ze bevatten dus het frame nummer (*physical page number*, PPN)
+* `PPN`: Bits 10 - 53 zijn de 44 bits die naar een frame verwijzen. Ze bevatten dus het frame nummer (*physical page number*, PPN)
 * `U`: Bit 4 is de user bit. Een pagina kan enkel in user-mode gebruikt worden indien de `U`-bit actief is.
 * `X`: Bit 3 is de executable bit. Indien een pagina code bevat kan deze enkel uitgevoerd worden indien de `X`-bit van deze pagina actief is.
 * `W`: Bit 2 is de writeable bit. Data kan enkel naar een pagina geschreven worden indien `W` actief is.
