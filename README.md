@@ -9,20 +9,25 @@ In deze oefenzitting leren jullie over virtual memory.
     - [Bitvoorstellling PTE](#bitvoorstellling-pte)
     - [Access control](#access-control)
     - [Page faults](#page-faults)
-- [Verschillende adresruimten](#verschillende-adresruimten)
+- [Address spaces in xv6](#address-spaces-in-xv6)
+  - [Kernel address space](#kernel-address-space)
+    - [Identity mapping](#identity-mapping)
+    - [Kernel stacks](#kernel-stacks)
+    - [Opbouw kernel address space in xv6](#opbouw-kernel-address-space-in-xv6)
+  - [Process address space](#process-address-space)
+  - [Null pointer exceptions](#null-pointer-exceptions)
+  - [Trampoline](#trampoline)
+  - [Security](#security)
   - [Inter-process isolatie](#inter-process-isolatie)
   - [Kernel isolatie](#kernel-isolatie)
 - [Levenscyclus proces](#levenscyclus-proces)
   - [exec](#exec)
   - [fork](#fork)
   - [sbrk](#sbrk)
+- [Pagetables inspecteren](#pagetables-inspecteren)
 - [Toepassingen van Virtual Memory](#toepassingen-van-virtual-memory)
-  - [Trampoline](#trampoline)
-  - [Null-pointer exception](#null-pointer-exception)
-  - [Guard pages](#guard-pages)
   - [Shared memory](#shared-memory)
   - [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
-- [TODO list](#todo-list)
 
 # Voorbereiding
 
@@ -213,7 +218,148 @@ Ze vangen de *page fault* op, mappen de betrokken pagina (indien mogelijk) en he
 xv6 heeft geen demand paging.
 
 
-# Verschillende adresruimten
+# Address spaces in xv6
+
+Genoeg over page tables.
+Laten we eens op een hoger niveau kijken hoe dit alles door xv6 gebruikt wordt om de kernel en processen eigen adresruimten toe te kennen.
+
+## Kernel address space
+
+In hoofdstuk 3 van het xv6 boek kwamen we de volgende figuur tegen:
+
+![kernel-address-space](img/xv6-kernel-address-space.png)
+
+Op het moment dat code in de kernel uitvoert, wijst het `satp`-register naar de top-level page table van de kernel.
+Hierdoor worden adressen vertaald zoals afgebeeld op bovenstaande afbeelding.
+
+Zo zie je dat de code (`text`-sectie) van de kernel ingeladen is op adres `0x80000000`.
+De pagina's met code zijn gemapt als read/execute.
+Je kan de code van de kernel dus niet overschrijven (tenzij je eerst de page tables aanpast).
+Net boven de code wordt de `data`-sectie (globale variabelen) van de kernel gemapt.
+
+### Identity mapping
+
+Deze mapping is speciaal en volgt een identity mapping.
+Elk fysisch adres wordt gemapt op hetzelfde overeenkomstige virtueel adres.
+Hiermee bedoelen we: virtueel adres `0x80000000` wordt gemapt op fysisch adres `0x80000000`.
+Virtueel adres `0x80000001` wordt gemapt of fysisch adres `0x80000001`, enzovoort.
+
+Er is een belangrijke reden om deze mapping op deze manier uit te voeren.
+De code om paginatabellen te bewerken zit in de text section van de kernel.
+Deze code moet continu schrijven naar fysieke adressen.
+Door de identity map werk je in feite rechtstreeks met fysieke adressen, waardoor page table code veel eenvoudiger geschreven kan worden.
+De code die page tables bewerkt in xv6 zou niet werken zonder deze identity map.
+
+### Kernel stacks
+
+De kernel reserveert voor ieder proces een eigen *kernel stack*
+Deze stack wordt gebruikt als *call stack* op het moment dat een proces switcht naar supervisor-mode, bijvoorbeeld als gevolg van een `ecall` of een *exception*.
+
+Tussen elke kernel stack vind je een *guard page*.
+Dit is meteen een interessante toepassing van virtual memory.
+De grootte van een per-process kernel stack wordt door xv6 gelimiteerd tot 1 pagina.
+Indien een stack groter wordt dan het gealloceerde geheugen spreken we over een *stack overflow*.
+Zonder bescherming tegen een *stack overflow* zou dit ervoor kunnen zorgen dat de stack kritische kerneldata overschrijft.
+
+Om te detecteren wanneer een xv6 kernel stack vol is, wordt de pagina boven de stack niet gemapt.
+Wanneer je probeert te schrijven naar een unmapped pagina krijg je een page fault.
+Op die manier kan een stack overflow automatisch gedetecteerd en vermeden worden.
+
+### Opbouw kernel address space in xv6
+
+De functie [`kvmmake`][kvmmake] roept `mappages` op (via `kvmmap`) om de address space van de kernel op te bouwen.
+
+* Bekijk de functie [`kvmmake`][kvmmake]. Deze code zou ondertussen begrijpbaar moeten zijn.
+
+## Process address space
+
+Op het moment dat een proces in user-mode uitvoert zorgt de kernel ervoor dat het `satp`-register wijst naar de top-level page table van het huidige proces.
+Zo zorgen we ervoor dat wanneer een user-space programma naar een virtueel adres aanspreekt, dit vertaald wordt naar een eerder gekozen fysieke locatie in het geheugen.
+Elk proces heeft zo een eigen virtuele adresruimte.
+
+Ook voor processen kiest xv6 een vaste layout om deze adresruimte op te delen:
+
+![xv6 process address space](img/xv6-process-address-space.png)
+
+Ieder proces krijgt een eigen pagina gealloceerd om de *call stack* van het programma te bewaren.
+Onder deze stackpagina wordt, net zoals in de kernel, een guard pagina geplaatst die niet gemapt wordt in het geheugen, om stack overflows te detecteren.
+
+De code van een proces wordt in xv6 gemapt op virtueel adres 0, dus op de eerste pagina in de virtuele adresruimte.
+Deze code kan één of meerdere pagina's groot zijn.
+Boven de code (op hogere addressen) wordt de global data van het proces gemapt.
+
+> :information_source: We hebben xv6 reeds aangepast zodat de text-sectie en de data-secties elk op eigen pagina's gemapt worden. Dit wordt niet gereflecteerd in de figuur. Door deze aanpassing is het voor ons mogelijk om bepaalde secties (bvb .rodata) read-only te mappen. Dat zou niet mogelijk zijn indien code en data pagina's zouden delen.
+
+**TODO** Hier ergens oefening om .rodata read only te mappen invoegen
+
+## Null pointer exceptions
+
+* Compileer en voer in je Linuxdistributie (niet in xv6) het volgende simpele programma uit:
+
+```c
+#include <stdio.h> //#include "user/user.h" in xv6! 
+int main(){
+  int *p = 0; //p is a pointer to the address 0
+  printf("The value at address 0 is %d", *p);
+  return 0;
+}
+```
+
+* Wat is de output van je programma? *(hint: een welbekende foutmelding)*
+* Compileer nu hetzelfde programma in xv6 en voer dit uit. Wat is daar je output?
+
+De fout die we krijgen in onze eigen Linuxdistributie krijgen we niet in xv6.
+Tijd om eens na te denken over wat bovenstaande code net doet.
+In feite niet veel meer dan het adres 0 uitlezen.
+
+In de meeste Linux-distributies wordt het adres 0 gebruikt om aan te geven dat een pointer nergens naar verwijst, of niet geïnitialiseerd is.
+Denk bijvoorbeeld aan een simpele linked list.
+Indien het *next* veld van een lijstelement 0 is, hebben we het laatste element van de lijst bereikt.
+Kortom, het is niet de bedoeling dat er nuttige informatie op adres 0 te vinden is.
+
+Het lezen van informatie uit adres 0 wijst dus bijna zeker op een fout in je code.
+Om ervoor te zorgen dat deze fouten gedetecteerd kunnen worden, zullen Linux-distributies ervoor zorgen dat het adres 0 ontoegankelijk is.
+
+* Hoe zou je in xv6 ervoor kunnen zorgen dat het adres 0 ontoegankelijk is? Kan je op een of andere manier een *fault* veroorzaken bij het lezen van adres 0?
+
+xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toegankelijk. Dat is in feite een zeer slechte beslissing, want zo is het veel lastiger fouten te vinden in C-code (in plaats van een exception krijg je willekeurge data, waarschijnlijk de bytecode van een functie, bij het uitlezen van adres 0).
+
+* De error message die je in Linux kreeg was waarschijnlijk niet *page fault*, maar het leek er wel op. Zou je dit verschil kunnen verklaren?
+
+## Trampoline
+
+Het is je misschien opgevallen dat een pagina genaamd *trampoline* gemapt is in de adresruimte van de kernel en in de adresruimte van ieder proces.
+Misschien herinner je je zelfs dat we verwezen hebben naar de trampolinepagina in de vorige oefenzitting.
+Tijd om uit te leggen wat deze pagina daar doet.
+
+Eerder hebben we vermeld dat, wanneer er zich een exception voordoet, of wanneer we een `ecall`-uitvoeren, de RISC-V hardware van uitvoermodus verandert en springt naar de trap handler.
+Neem nu bijvoorbeeld de `ecall`.
+Uitgevoerd vanuit user-mode zorgt dit ervoor dat de processor switcht naar supervisor-mode en vervolgens springt naar het adres van de trap handler.
+
+> :information_source: Ook interrupts zorgen voor een sprong naar de trap handler. Dit wordt in een latere sessie behandeld.
+
+De processor wil nu dus code van de kernel uitvoeren, om te system call af te kunnen handelen.
+De code van de kernel is echter gemapt in een eigen adresruimte.
+Op het moment dat de `ecall` wordt uitgevoerd, wijst het
+`satp`-register echter nog steeds naar de page table van het user proces.
+De processor springt dus naar de trap handler, de trap handler moet bijgevolg gemapt zijn in het user proces.
+
+Om die reden mappen we de trampolinepagina in iedere adresruimte op hetzelfde adres.
+Zo kan de RISC-V hardware simpelweg springen naar een vast adres en weten we zeker welke pagina daar gemapt zal staan.
+
+* Bekijk de code van `kernel/trampoline.S` **TODO** link
+
+De trampoline zal alle registers bewaren in het trapframe bij het wisselen van user-space naar kernel-space.
+Daarnaast zal de trampoline ook `satp` wisselen zodat deze wijst naar de top-level page table van de kernel.
+
+Je vraagt je misschien af waarom de trampoline ook in de kernel address space gemapt moet staan.
+Meteen nadat het `satp`-register aangepast wordt, wisselt meteen de volledige adresvertaling van de processor.
+De programmateller laadt instructies uit het geheugen op basis van adressen.
+Stel dat je `satp` zou wijzigen zonder op dezelfde plaats in de andere adresruimte dezelfde code te mappen, zou plots de code uitgevoerd worden die in de andere adresruimte op dezelfde plaats gemapt staat (en dus niet meer de trampolinecode).
+
+* De trampolinepagina staat gemapt met `R` (read) en `X` (execute) permissies. Stel dat de trampolinepagina ook `W` (write) permissies zou hebben. Kan je bedenken hoe dit voor problemen zou kunnen zorgen?
+
+## Security
 
 >**TODO** 
 >
@@ -222,10 +368,6 @@ xv6 heeft geen demand paging.
 >* Proces-kernel isolatie
 >* Concept software fault isolatie
 >* ...
->Gebruik hiervoor oa.
->* uvmmap
->* kvmmap
->* Figuren over kernel en proces layouts
 
 Een belangrijk gevolg van virtual memory dat we tot nog toe niet besproken hebben is het feit dat virtual memory grotendeels zorgt voor *inter-process isolatie*.
 
@@ -372,18 +514,6 @@ Enkele van deze toepassingen hebben we reeds theoretisch bekeken:
 
 * **TODO** Interprocess isolatie (al besproken)
 
-## Trampoline
-
-**TODO**
-
-## Null-pointer exception
-
-**TODO**
-
-## Guard pages
-
-**TODO**
-
 ## Shared memory
 
 **TODO**
@@ -391,12 +521,6 @@ Enkele van deze toepassingen hebben we reeds theoretisch bekeken:
 ## Permanente evaluatie: VDSO
 
 **TODO** VDSO
-
-# TODO list
-
-Alle niet-inlined todo's:
-
-**TODO** Identity map op gepaste plaats bespreken
 
 
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
@@ -409,3 +533,4 @@ Alle niet-inlined todo's:
 [uvmcopy]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L298
 [sys_vmprintmappings]: https://github.com/besturingssystemen/xv6-riscv/blob/b26f9c647c1b8d27b7a7b3b374422c87591a8e1a/kernel/sysproc.c#L99
 [sys_vmprintmappings impl]: https://github.com/besturingssystemen/xv6-riscv/blob/b26f9c647c1b8d27b7a7b3b374422c87591a8e1a/kernel/vm.c#L433-L460
+[kvmmake]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L20
