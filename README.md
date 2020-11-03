@@ -357,7 +357,7 @@ Meteen nadat het `satp`-register aangepast wordt, wisselt meteen de volledige ad
 De programmateller laadt instructies uit het geheugen op basis van adressen.
 Stel dat je `satp` zou wijzigen zonder op dezelfde plaats in de andere adresruimte dezelfde code te mappen, zou plots de code uitgevoerd worden die in de andere adresruimte op dezelfde plaats gemapt staat (en dus niet meer de trampolinecode).
 
-* De trampolinepagina staat gemapt met `R` (read) en `X` (execute) permissies. Stel dat de trampolinepagina ook `W` (write) permissies zou hebben. Kan je bedenken hoe dit voor problemen zou kunnen zorgen?
+* De trampolinepagina staat gemapt met `R` (read) en `X` (execute) permissies. Daarnaast is de pagina enkel toegankelijk in supervisor mode (de `U`-bit is inactief). Stel dat de trampolinepagina ook `W` (write) permissies zou hebben en user-mode access zou enabled zijn. Kan je bedenken hoe dit voor problemen zou kunnen zorgen? 
 
 # Security
 
