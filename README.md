@@ -447,11 +447,59 @@ We gaan dus code toevoegen om de flags van een mapping aan te passen en gelijk t
 
 Verifieer je implementatie via de `vmprintmappings` syscall.
 
+# Permanente evaluatie
 
-# Permanente evaluatie: VDSO
+Bekijk de implementatie van de [`uptime`][sys_uptime] syscall.
+Als we de locking even buiten beschouwing laten (hier komen we in een later sessie op terug), doet de `sys_uptime` functie niets anders dan de globale variabele [`ticks`][ticks] terug te geven.
+Een volledige syscall uitvoeren (met twee context switches tot gevolg) lijkt bijzonder inefficiënt voor het lezen van een variabele.
+Voor deze oefening zullen we hier een oplossing voor zoeken die slim gebruik maakt van memory mappings.
 
-**TODO** VDSO
+De Linux kernel gebruikt een mechanisme genaamd [vDSO][vDSO] om bepaalde syscalls volledig in user space uit te kunnen voeren.
+De kernel groepeert een aantal veel gebruikte variabelen in een page en mapt deze page read-only in elk proces.
+Dit zorgt ervoor dat processen de waarden van deze variabelen kunnen lezen (maar niet schrijven!) zonder een syscall uit te voeren.
 
+We gaan nu een gelijkaardig mechanisme implementeren in xv6 om de `ticks` variabele leesbaar te maken in user space.
+Aangezien mappings per pagina gemaakt worden, moeten we ervoor zorgen dat de `ticks` variabele alleen op een pagina staat (zodat we niet _meer_ dan nodig leesbaar maken in user space).
+We doen dit in twee stappen:
+1. We zorgen ervoor dat `ticks` in een specifieke linker sectie genaam `.vdso` geplaatst wordt.
+   GCC biedt hiervoor het [`section`][GCC section] attribuut aan dat op de volgende manier gebruikt kan worden:
+   ```c
+   uint ticks __attribute__((section(".vdso")));
+   ```
+   Er zal dus een linker sectie `.vdso` genereerd worden waar enkel de `ticks` variabele in zit.
+1. We passen het linkerscript ([`kernel/kernel.ld`][kernel.ld]) aan dat gebruikt wordt om de kernel te linken.
+   Een linkerscript is een beschrijving van hoe de executable die de linker gaat maken er uit moet zien.
+   Voeg de volgende code toe net _voor_ de lijn met `PROVIDE(end = .);`:
+    ```c
+    .vdso : { /* Begin een *output* sectie genaamd .vdso */
+      . = ALIGN(0x1000); /* Align het huidige adres (.) op een page boundary */
+      _vdso_start = .; /* Maak een nieuw symbol _vdso_start met het huidige adres */
+      *(.vdso); /* Plaats alle *input* secties genaamd .vdso in de huidige output sectie  */
+      . = ALIGN(0x1000); /* Align het huidige adres op een page boundary */
+      ASSERT(. - _vdso_start == 0x1000, "error: vdso larger than one page");
+    }
+    ```
+    Jullie hoeven hier zeker niet alles van te begrijpen!
+    (De geïnteresseerden kunnen voor meer informatie de [manual][ld scripts] over linkerscripts lezen.)
+    Het resultaat is dat de kernel executable een output sectie heeft die:
+    1. Begint en eindigt op een page boundary (en exact 1 page groot is);
+    1. Alle sectties genaamd `.vdso` bevat (in ons geval dus enkel de `ticks` variabele);
+    1. Een symbool genaamd `_vdso_start` definieert dat verwijst naar het begin van de sectie.
+
+Dit is een goed moment om eens te controleren of de kernel nog werkt.
+
+Jullie opdracht bestaat nu uit het volgende:
+1. Map de page die de `.vdso` sectie bevat in elk user proces op dezelfde locatie.
+    1. Het adres van het symbool `_vdso_start` kan je in C krijgen door een variabele op de volgende manier te declareren:
+       ```c
+       extern char _vdso_start[];
+       ```
+    1. Een mogelijke plek om dit te implementeren, is in de functie [`proc_pagetable`][proc_pagetable] die de initiële mappings voor een proces aanmaakt.
+       Kijk zeker naar hoe de mapping voor de trampoline aangemaakt worden.
+    1. Kies zelf een logisch virtueel adres voor de mapping.
+    1. Zorg ervoor dat de page read-only gemapt wordt.
+1. Maak nu een functie in user space genaamd `fastuptime` die de waarde van de variabele `ticks` uitleest uit de gemapte page en returnt.
+    1. Hint: de variabele `ticks` staat op het eerste adres van deze page en heeft het type `uint`.
 
 # Bonus: Null pointer exception
 
@@ -487,7 +535,6 @@ xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toe
 
 > :information_source: Gebruik het forum voor hulp!
 
-
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
 [mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
 [walk]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L81
@@ -507,3 +554,10 @@ xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toe
 [ELF flags consts]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/elf.h#L44-L47
 [elf.h]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/elf.h
 [trampoline]: https://github.com/besturingssystemen/xv6-riscv/blob/1f555198d61d1c447e874ae7e5a0868513822023/kernel/trampoline.S
+[sys_uptime]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/sysproc.c#L86
+[ticks]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/trap.c#L10
+[vDSO]: https://en.wikipedia.org/wiki/VDSO
+[GCC section]: https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-section-variable-attribute
+[kernel.ld]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/kernel.ld
+[ld scripts]: https://sourceware.org/binutils/docs/ld/Scripts.html
+[proc_pagetable]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/proc.c#L162
