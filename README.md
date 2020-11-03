@@ -227,6 +227,33 @@ Fork returned het `pid` van de parent in het parent-proces, vandaar ten slotte d
 
 **TODO**
 
+# Pagetables inspecteren
+
+Om het gemakkelijk te maken de pagetables van processen te bekijken, hebben we een syscall toegevoegd: [`vmprintmappings`][sys_vmprintmappings].
+Deze syscall zal alle geldige mappings van het oproepende proces afprinten in het volgende formaat:
+
+<pre>
+{va} -> {pa}, mode={U|S}, perms={r|-}{w|-}{x|-}
+</pre>
+
+Hier is `va` het virtuele adres van een page, `pa` het fysieke adres vet het overeenkomende frame.
+`mode` is `U` voor een user page of `S` voor een supervisor (kernel) page.
+`perms` toont de permissie flags voor de pagina: readable (`r`), writable (`w`), en executable (`x`).
+Elk veldje bevat een `-` als de permissie niet gezet is.
+
+De implementatie van `vmprintmappings` vind je in [`vm.c`][sys_vmprintmappings impl].
+Alhoewel je zeker niet elk detail hoeft te begrijpen, is het nuttig om de implementatie eens te bekijken.
+
+- Roep `vmprintmappings` in je hello world programma en vergelijk het resultaat met figuur 3.4 in het xv6 boek.
+  Probeer elke mapping te begrijpen en kijk zeker naar de `mode` en `perms` velden.
+- Maak een programma dat `vmprintmappings` oproept voor en na een oproep naar `sbrk(1)`.
+  Verklaar het verschil in de outputs.
+- Maak een programma dat `fork` gebruikt om een child proces te maken en vervolgens `vmprintmappings` oproept in parent en child.
+  Verklaar de output.
+  (Hint: gebruik `wait` in de parent om te wachten tot het child klaar is met uitvoeren om te voorkomen dat de outputs van `vmprintmappings` door elkaar geprint worden.)
+- Bekijk nu het effect van `exec` op de mappings.
+  Roep `vmprintmappings` voor de oproep naar `exec` en ook in het programma dat je met `exec` uitvoert.
+
 # Toepassingen van Virtual Memory
 
 Het concept virtual memory zou ondertussen heel duidelijk moeten zijn.
@@ -281,3 +308,5 @@ Alle niet-inlined todo's:
 [fork]: https://github.com/besturingssystemen/xv6-riscv/blob/2821d43cc95b4f9faf79ff94daa5d3a8ea5e7861/kernel/proc.c#L244
 [allocproc]: https://github.com/besturingssystemen/xv6-riscv/blob/2821d43cc95b4f9faf79ff94daa5d3a8ea5e7861/kernel/proc.c#L100
 [uvmcopy]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L298
+[sys_vmprintmappings]: https://github.com/besturingssystemen/xv6-riscv/blob/b26f9c647c1b8d27b7a7b3b374422c87591a8e1a/kernel/sysproc.c#L99
+[sys_vmprintmappings impl]: https://github.com/besturingssystemen/xv6-riscv/blob/b26f9c647c1b8d27b7a7b3b374422c87591a8e1a/kernel/vm.c#L433-L460
