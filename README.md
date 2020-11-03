@@ -15,19 +15,13 @@ In deze oefenzitting leren jullie over virtual memory.
     - [Kernel stacks](#kernel-stacks)
     - [Opbouw kernel address space in xv6](#opbouw-kernel-address-space-in-xv6)
   - [Process address space](#process-address-space)
-  - [Null pointer exceptions](#null-pointer-exceptions)
-  - [Trampoline](#trampoline)
-- [Security](#security)
-  - [Inter-process isolatie](#inter-process-isolatie)
-  - [Kernel isolatie](#kernel-isolatie)
+    - [Security](#security)
 - [Levenscyclus proces](#levenscyclus-proces)
-  - [exec](#exec)
+  - [Pagetables inspecteren](#pagetables-inspecteren)
   - [fork](#fork)
-  - [sbrk](#sbrk)
-- [Pagetables inspecteren](#pagetables-inspecteren)
-  - [Shared memory](#shared-memory)
-  - [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
-- [Proces mappings veiliger maken](#proces-mappings-veiliger-maken)
+  - [Proces mappings veiliger maken](#proces-mappings-veiliger-maken)
+- [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
+- [Bonus: Null pointer exception](#bonus-null-pointer-exception)
 
 # Voorbereiding
 
@@ -97,8 +91,6 @@ Neem aan dat:
 2. Het virtuele adres `MAXVA-PGSIZE` (0x3ffffff000) moet verwijzen naar de eerste byte van deze trampolinepagina.
    
 Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `MAXVA-PGZISE` probeert te dereferencen, de RISC-V hardware dit kan vertalen naar de eerste byte van frame 1234.
-
-**TODO** Beter adres dat niet enkel uit index 511 bestaat?
 
 * Welke stappen moet xv6 zetten om ervoor te zorgen dat deze adresvertaling correct uitgevoerd wordt?  Neem aan dat de top-level page table reeds bestaat en dat dit de enige page table is die al gealloceerd is voor dit proces.
   * Hoeveel page tables moet het besturingssysteem aanmaken?
@@ -290,186 +282,26 @@ Boven de code (op hogere addressen) wordt de global data van het proces gemapt.
 
 > :information_source: We hebben xv6 reeds aangepast zodat de text-sectie en de data-secties elk op eigen pagina's gemapt worden. Dit wordt niet gereflecteerd in de figuur. Door deze aanpassing is het voor ons mogelijk om bepaalde secties (bvb .rodata) read-only te mappen. Dat zou niet mogelijk zijn indien code en data pagina's zouden delen.
 
-**TODO** Hier ergens oefening om .rodata read only te mappen invoegen
+### Security
 
-## Null pointer exceptions
+De laatste vraag die we stelden is rechtstreeks gerelateerd aan het concept security.
+Om veiligheidsredenen is het zeer belangrijk dat een proces enkel toegang heeft tot zijn eigen geheugen.
 
-* Compileer en voer in je Linuxdistributie (niet in xv6) het volgende simpele programma uit:
+Indien een user-space proces zou kunnen schrijven naar het geheugen van de kernel, zou dit rampzalig zijn.
+Eender welk onschuldig, geïnstalleerd programma zou je besturingssysteem kunnen aanpassen en vervolgens je volledige machine kunnen overnemen.
 
-```c
-#include <stdio.h> //#include "user/user.h" in xv6! 
-int main(){
-  int *p = 0; //p is a pointer to the address 0
-  printf("The value at address 0 is %d", *p);
-  return 0;
-}
-```
+Het zou voldoende zijn om eigen code te schrijven naar een pagina van de kernel, vervolgens `ecall` uit te voeren (waardoor de processor naar supervisor mode switcht) en ervoor te zorgen dat de trap handler jouw nieuwe code uitvoert in plaats van de oude kernel code.
+Op dat moment wordt je code uitgevoerd met de volle rechten van het OS. Het onschuldige programma heeft dus volledige controle over alles wat er verder gebeurt op jouw machine.
 
-* Wat is de output van je programma? *(hint: een welbekende foutmelding)*
-* Compileer nu hetzelfde programma in xv6 en voer dit uit. Wat is daar je output?
-
-De fout die we krijgen in onze eigen Linuxdistributie krijgen we niet in xv6.
-Tijd om eens na te denken over wat bovenstaande code net doet.
-In feite niet veel meer dan het adres 0 uitlezen.
-
-In de meeste Linux-distributies wordt het adres 0 gebruikt om aan te geven dat een pointer nergens naar verwijst, of niet geïnitialiseerd is.
-Denk bijvoorbeeld aan een simpele linked list.
-Indien het *next* veld van een lijstelement 0 is, hebben we het laatste element van de lijst bereikt.
-Kortom, het is niet de bedoeling dat er nuttige informatie op adres 0 te vinden is.
-
-Het lezen van informatie uit adres 0 wijst dus bijna zeker op een fout in je code.
-Om ervoor te zorgen dat deze fouten gedetecteerd kunnen worden, zullen Linux-distributies ervoor zorgen dat het adres 0 ontoegankelijk is.
-
-* Hoe zou je in xv6 ervoor kunnen zorgen dat het adres 0 ontoegankelijk is? Kan je op een of andere manier een *fault* veroorzaken bij het lezen van adres 0?
-
-xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toegankelijk. Dat is in feite een zeer slechte beslissing, want zo is het veel lastiger fouten te vinden in C-code (in plaats van een exception krijg je willekeurge data, waarschijnlijk de bytecode van een functie, bij het uitlezen van adres 0).
-
-* De error message die je in Linux kreeg was waarschijnlijk niet *page fault*, maar het leek er wel op. Zou je dit verschil kunnen verklaren?
-
-## Trampoline
-
-Het is je misschien opgevallen dat een pagina genaamd *trampoline* gemapt is in de adresruimte van de kernel en in de adresruimte van ieder proces.
-Misschien herinner je je zelfs dat we verwezen hebben naar de trampolinepagina in de vorige oefenzitting.
-Tijd om uit te leggen wat deze pagina daar doet.
-
-Eerder hebben we vermeld dat, wanneer er zich een exception voordoet, of wanneer we een `ecall`-uitvoeren, de RISC-V hardware van uitvoermodus verandert en springt naar de trap handler.
-Neem nu bijvoorbeeld de `ecall`.
-Uitgevoerd vanuit user-mode zorgt dit ervoor dat de processor switcht naar supervisor-mode en vervolgens springt naar het adres van de trap handler.
-
-> :information_source: Ook interrupts zorgen voor een sprong naar de trap handler. Dit wordt in een latere sessie behandeld.
-
-De processor wil nu dus code van de kernel uitvoeren, om te system call af te kunnen handelen.
-De code van de kernel is echter gemapt in een eigen adresruimte.
-Op het moment dat de `ecall` wordt uitgevoerd, wijst het
-`satp`-register echter nog steeds naar de page table van het user proces.
-De processor springt dus naar de trap handler, de trap handler moet bijgevolg gemapt zijn in het user proces.
-
-Om die reden mappen we de trampolinepagina in iedere adresruimte op hetzelfde adres.
-Zo kan de RISC-V hardware simpelweg springen naar een vast adres en weten we zeker welke pagina daar gemapt zal staan.
-
-* Bekijk de code van `kernel/trampoline.S` **TODO** link
-
-De trampoline zal alle registers bewaren in het trapframe bij het wisselen van user-space naar kernel-space.
-Daarnaast zal de trampoline ook `satp` wisselen zodat deze wijst naar de top-level page table van de kernel.
-
-Je vraagt je misschien af waarom de trampoline ook in de kernel address space gemapt moet staan.
-Meteen nadat het `satp`-register aangepast wordt, wisselt meteen de volledige adresvertaling van de processor.
-De programmateller laadt instructies uit het geheugen op basis van adressen.
-Stel dat je `satp` zou wijzigen zonder op dezelfde plaats in de andere adresruimte dezelfde code te mappen, zou plots de code uitgevoerd worden die in de andere adresruimte op dezelfde plaats gemapt staat (en dus niet meer de trampolinecode).
-
-* De trampolinepagina staat gemapt met `R` (read) en `X` (execute) permissies. Daarnaast is de pagina enkel toegankelijk in supervisor mode (de `U`-bit is inactief). Stel dat de trampolinepagina ook `W` (write) permissies zou hebben en user-mode access zou enabled zijn. Kan je bedenken hoe dit voor problemen zou kunnen zorgen? 
-
-# Security
-
->**TODO** 
->
->Uitleg over adresruimten:
->* Inter-proces isolatie
->* Proces-kernel isolatie
->* Concept software fault isolatie
->* ...
-
-Een belangrijk gevolg van virtual memory dat we tot nog toe niet besproken hebben is het feit dat virtual memory grotendeels zorgt voor *inter-process isolatie*.
-
-## Inter-process isolatie
-
-**TODO** Deze sectie is nog heel temporary, beter uitschrijven en bondiger maken
-
-Om veiligheidsredenen is het belangrijk dat verschillende processen op een machine niet zomaar in elkaars geheugenruimte kunnen.
-Stel je voor dat je een password manager gebruikt en even later een online spel opstart.
-Het zou rampzalig zijn indien de makers van dat online spel hun code zo zouden kunnen schrijven dat deze het geheugen van de password manager op de achtergrond zouden kunnen uitlezen en doorsturen naar hun eigen servers.
-
-Je zou kunnen zeggen: oké, maar ik vertrouw de makers van het online spel.
-Zelfs dan kan het zijn dat het spel *exploitable* is.
-Jullie weten ondertussen allemaal hoe eenvoudig het is om een foutief C-programma te schrijven.
-Elke programmeur maakt fouten en vele programma's zijn gigantisch groot.
-Eén enkele kleine fout kan voldoende zijn om een proces volledig over te nemen.
-Indien één van je medespelers jouw spel kan exploiten, zou deze vervolgens nog steeds aan de inhoud van je password manager geraken.
-
-Het is belangrijk dat ieder proces op een machine geïsoleerd is van elkaar. 
-Communicatie tussen processen kan (denk bijvoorbeeld aan pipes), maar dit moet expliciet de bedoeling zijn. 
-Processen mogen elkaars geheugen niet uitlezen, en zeker niet bewerken.
-
-## Kernel isolatie
-
-**TODO**
+Virtual memory zorgt ervoor dat je geen toegang hebt tot het geheugen van de kernel.
+Virtual memory zorgt er ook voor dat je geen toegang hebt tot het geheugen van andere processen.
+Zo kan je browser niet aan de inhoud van je password manager, enzovoort.
 
 # Levenscyclus proces
 
-In de [sessie over os interfaces](https://github.com/besturingssystemen/os-interfaces) hebben jullie in de permanente evaluatie ontdekt dat wanneer een proces geforked wordt, je plots twee processen hebt met *dezelfde* adressen maar toch mogelijks andere waarden op deze adressen.
+In deze sectie gaan we dieper in op de impact van `fork`, `exec` en `sbrk` op de page tables van een proces.
 
-* Verklaar dit aan de hand van je kennis over virtual memory
-
-In de [sessie over system calls](https://github.com/besturingssystemen/system-calls#levenscyclus-proces) hebben we jullie vervolgens verteld hoe een proces aangemaakt wordt met `fork` en een taak toegewezen krijgt met `exec`.
-
-Ondertussen hebben we voldoende informatie om te duiken in de implementatie van deze functies.
-
-## exec
-
-> **TODO**  Korte uitleg geven over werking exec, verder verwijzen naar het boek en eventueel naar [exec/README.md](exec/README.md)
-
-**TODO: Oefening** Page table dumps bij exec, fork, sbrk?
-
-**TODO: Oefening** R/W/X .rodata (etc) fixen bij exec met tweede pass
-
-## fork
-
-* Bekijk de implementatie van [`fork`][fork] in [`kernel/proc.c`][proc]
-
-> :information_source: In de komende delen zullen we soms code tegenkomen waarin gebruik wordt gemaakt van locks. Hierop zullen we dieper ingaan in de sessie over synchronisatie.
-
-De eerste functie die `fork` oproept is [`allocproc`][allocproc].
-Hier wordt het nieuwe proces toegevoegd in de process table, een structuur die gebruikt wordt om alle actieve processen te bewaren. 
-Het proces krijgt een nieuwe `pid` toegewezen.
-Daarnaast worden de nodige datastructuren aangemaakt die het besturingssysteem bewaart per proces:
-* De trapframe
-* Een lege top-level page table
-  * We maken dus een nieuwe, lege virtuele adresruimte
-* Een context. Hier gaan we dieper op in gedurende de sessie over scheduling
-
-Op dit moment heeft ons nieuwe proces dus nog een lege virtuele adresruimte.
-We weten echter dat fork een kopie maakt van de oude adresruimte.
-Alle adressen die gemapt waren in het parent proces moeten ook gemapt worden in het child proces.
-Elk van die adressen moet vervolgens ook dezelfde waarde toegekend krijgen.
-
-* Denk even na welke stappen je conceptueel zou moeten nemen om de virtuele adresruimte te kopiëren zoals hierboven beschreven
-
-We kunnen nu kijken of je assumpties correct waren.
-De functie `uvmcopy` voert deze kopie uit.
-
-* Bekijk de functie [`uvmcopy`][uvmcopy] in `kernel/vm.c`
-
-De functie krijgt drie parameters: de paginatabel van de parent (`old`), de paginatabel van de child (`new`), en de grootte van het geheugen van het parent-proces (`sz`).
-
-> In xv6 wordt ervoor gezorgd dat alle gebruikte virtuele adressen in het bereik [0, `sz`-1] vallen. `sz` kan worden vergroot gedurende de levensduur van een proces met behulp van de system call `sbrk`.
-
-Vervolgens zal `uvmcopy` itereren over alle gemapte pagina's in dat bereik.
-Per pagina worden de volgende stappen uitgevoerd:
-1. Eerst wordt door middel van een software page walk de correcte page table entry gevonden
-   * Uit deze entry wordt (met `PTE2PA`) het fysieke adres van de frame gehaald, waar de pagina gemapt staat
-   * Daarnaast worden ook de flags van de pagina opgehaald met `PTE_FLAGS`
-2. Vervolgens wordt een lege frame gevonden in het geheugen met behulp van `kalloc()`
-3. Met `memmove` wordt de volledige inhoud van de pagina van de parent gekopieerd naar de nieuw gealloceerde pagina
-4. Met `mappages` wordt deze nieuwe pagina gemapt op de zonet aangemaakte frame. Hierbij wordt er dus voor gezorgd dat het virtuele adres van de pagina naar de nieuwe frame mapt in het child-proces.
-
-Hopelijk was je zelf ook tot gelijkaardige stappen gekomen in de voorgaande denkoefening. Laten we terugspringen naar fork.
-Nu we de virtuele adresruimte hebben gekopieerd, resteert ons voornamelijk nog wat boekhouding. 
-
-We kopiëren het veld `sz` in de `struct proc` van parent naar child en we zetten laten het `parent`-veld van de child verwijzen naar het parent-proces.
-We kopiëren de bewaarde registers in het `trapframe`.
-Door `a0` te overschrijven in de child zorgen we ervoor dat `fork` 0 zal returnen in het geforkte proces.
-
-We zorgen ervoor dat het child-proces eigen verwijzingen heeft naar elke open file van het parent proces, zodat wanneer het parent proces een file zou sluiten, xv6 nog steeds weet dat dit bestand open moet blijven (want de child kan dit bestand nog nodig hebben).
-
-Ten slotte wordt de naam van het proces gekopieerd, de `pid` van de child wordt correct ingesteld en de `state` wordt op `RUNNABLE` gezet (hierover meer in de scheduling oefenzitting).
-
-Fork returned het `pid` van de parent in het parent-proces, vandaar ten slotte de return statement.
-
-## sbrk
-
-**TODO**
-
-# Pagetables inspecteren
+## Pagetables inspecteren
 
 Om het gemakkelijk te maken de pagetables van processen te bekijken, hebben we een syscall toegevoegd: [`vmprintmappings`][sys_vmprintmappings].
 Deze syscall zal alle geldige mappings van het oproepende proces afprinten in het volgende formaat:
@@ -496,17 +328,21 @@ Alhoewel je zeker niet elk detail hoeft te begrijpen, is het nuttig om de implem
 - Bekijk nu het effect van `exec` op de mappings.
   Roep `vmprintmappings` voor de oproep naar `exec` en ook in het programma dat je met `exec` uitvoert.
 
-## Shared memory
+## fork
 
-**TODO**
+In de [sessie over os interfaces](https://github.com/besturingssystemen/os-interfaces) hebben jullie in de permanente evaluatie ontdekt dat wanneer een proces geforked wordt, je plots twee processen hebt met *dezelfde* adressen maar toch mogelijks andere waarden op deze adressen.
 
-## Permanente evaluatie: VDSO
+* Verklaar dit aan de hand van je kennis over virtual memory
+* Schrijf een simpel programma dat fork uitvoert en vervolgens `vmprintmappings` oproept in het `child` en `parent` proces
 
-**TODO** VDSO
+Geïnteresseerden kunnen [hier](fork/README.md) een uitgebreide uitleg vinden over de xv6 implementatie van fork.
 
-# Proces mappings veiliger maken
 
-In sectie 3.8 van het xv6 boek wordt uitgelegd hoe `exec` secties uit een ELF file in het geheugen laadt via [`uvmalloc`][uvmalloc].
+## Proces mappings veiliger maken
+
+In sectie 3.8 van het xv6 boek wordt uitgelegd hoe `exec` secties uit een ELF file in het geheugen laadt via [`uvmalloc`][uvmalloc]. Een gedetailleerde uitleg over exec/ELF kan je ook [hier](exec/README.md) terugvinden.
+
+
 We gaan dit nu wat meer in detail bekijken via het volgende programma (in `hello.c`):
 
 ```c
@@ -615,6 +451,47 @@ We gaan dus code toevoegen om de flags van een mapping aan te passen en gelijk t
 
 Verifieer je implementatie via de `vmprintmappings` syscall.
 
+
+# Permanente evaluatie: VDSO
+
+**TODO** VDSO
+
+
+# Bonus: Null pointer exception
+
+* Compileer en voer in je Linuxdistributie (niet in xv6) het volgende simpele programma uit:
+
+```c
+#include <stdio.h> //#include "user/user.h" in xv6! 
+int main(){
+  int *p = 0; //p is a pointer to the address 0
+  printf("The value at address 0 is %d", *p);
+  return 0;
+}
+```
+
+* Wat is de output van je programma? *(hint: een welbekende foutmelding)*
+* Compileer nu hetzelfde programma in xv6 en voer dit uit. Wat is daar je output?
+
+De fout die we krijgen in onze eigen Linuxdistributie krijgen we niet in xv6.
+Tijd om eens na te denken over wat bovenstaande code net doet.
+In feite niet veel meer dan het adres 0 uitlezen.
+
+In de meeste Linux-distributies wordt het adres 0 gebruikt om aan te geven dat een pointer nergens naar verwijst, of niet geïnitialiseerd is.
+Denk bijvoorbeeld aan een simpele linked list.
+Indien het *next* veld van een lijstelement 0 is, hebben we het laatste element van de lijst bereikt.
+Kortom, het is niet de bedoeling dat er nuttige informatie op adres 0 te vinden is.
+
+Het lezen van informatie uit adres 0 wijst dus bijna zeker op een fout in je code.
+Om ervoor te zorgen dat deze fouten gedetecteerd kunnen worden, zullen Linux-distributies ervoor zorgen dat het adres 0 ontoegankelijk is.
+
+xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toegankelijk. Dat is in feite een zeer slechte beslissing, want zo is het veel lastiger fouten te vinden in C-code (in plaats van een exception krijg je willekeurge data, waarschijnlijk de bytecode van een functie, bij het uitlezen van adres 0).
+
+* **Bonusoefening (moeilijk):** Pas xv6 aan zodat je een exception krijgt wanneer het adres 0 wordt gedereferenced.
+
+> :information_source: Gebruik het forum voor hulp!
+
+
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
 [mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
 [walk]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L81
@@ -633,3 +510,4 @@ Verifieer je implementatie via de `vmprintmappings` syscall.
 [struct proghdr]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/elf.h#L30
 [ELF flags consts]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/elf.h#L44-L47
 [elf.h]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/elf.h
+[trampoline]: https://github.com/besturingssystemen/xv6-riscv/blob/1f555198d61d1c447e874ae7e5a0868513822023/kernel/trampoline.S
