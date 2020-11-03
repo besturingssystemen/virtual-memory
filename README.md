@@ -17,7 +17,7 @@ In deze oefenzitting leren jullie over virtual memory.
   - [Process address space](#process-address-space)
   - [Null pointer exceptions](#null-pointer-exceptions)
   - [Trampoline](#trampoline)
-  - [Security](#security)
+- [Security](#security)
   - [Inter-process isolatie](#inter-process-isolatie)
   - [Kernel isolatie](#kernel-isolatie)
 - [Levenscyclus proces](#levenscyclus-proces)
@@ -359,7 +359,7 @@ Stel dat je `satp` zou wijzigen zonder op dezelfde plaats in de andere adresruim
 
 * De trampolinepagina staat gemapt met `R` (read) en `X` (execute) permissies. Stel dat de trampolinepagina ook `W` (write) permissies zou hebben. Kan je bedenken hoe dit voor problemen zou kunnen zorgen?
 
-## Security
+# Security
 
 >**TODO** 
 >
