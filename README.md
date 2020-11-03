@@ -25,9 +25,9 @@ In deze oefenzitting leren jullie over virtual memory.
   - [fork](#fork)
   - [sbrk](#sbrk)
 - [Pagetables inspecteren](#pagetables-inspecteren)
-- [Toepassingen van Virtual Memory](#toepassingen-van-virtual-memory)
   - [Shared memory](#shared-memory)
   - [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
+- [Proces mappings veiliger maken](#proces-mappings-veiliger-maken)
 
 # Voorbereiding
 
@@ -495,24 +495,6 @@ Alhoewel je zeker niet elk detail hoeft te begrijpen, is het nuttig om de implem
   (Hint: gebruik `wait` in de parent om te wachten tot het child klaar is met uitvoeren om te voorkomen dat de outputs van `vmprintmappings` door elkaar geprint worden.)
 - Bekijk nu het effect van `exec` op de mappings.
   Roep `vmprintmappings` voor de oproep naar `exec` en ook in het programma dat je met `exec` uitvoert.
-
-# Toepassingen van Virtual Memory
-
-Het concept virtual memory zou ondertussen heel duidelijk moeten zijn.
-We weten wat het is, hoe xv6 dit implementeert en hoe de RISC-V processor dit gebruikt.
-
-Virtual memory heeft vele handige toepassingen. 
-Enkele van deze toepassingen hebben we reeds theoretisch bekeken:
-
-* Programmacode kan geschreven worden in de aanname dat elk mogelijk adres (in de regio [0, `MAXVA`-1]) tot het proces behoort.
-* Pagina's van processen kunnen naar de harde schijf geswapt worden wanneer het werkgeheugen vol is. Consulteer je handboek voor meer informatie.
-
-> :information_source: Swapping als concept was vroeger belangrijker dan nu. Het is beter om te voorkomen dat je werkgeheugen vol komt te zitten door op tijd [meer RAM te downloaden](https://downloadmoreram.com).
-
-* Externe fragmentatie wordt vermeden. 
-  * Je hebt wel nog interne fragmentatie, wanneer je een pagina reserveert en niet de volledige pagina moet gebruiken. Dit is op moderne machines echter niet echt een probleem.
-
-* **TODO** Interprocess isolatie (al besproken)
 
 ## Shared memory
 
