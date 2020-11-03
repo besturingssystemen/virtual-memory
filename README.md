@@ -13,7 +13,6 @@ In deze oefenzitting leren jullie over virtual memory.
   - [Kernel address space](#kernel-address-space)
     - [Identity mapping](#identity-mapping)
     - [Kernel stacks](#kernel-stacks)
-    - [Opbouw kernel address space in xv6](#opbouw-kernel-address-space-in-xv6)
   - [Process address space](#process-address-space)
     - [Security](#security)
 - [Levenscyclus proces](#levenscyclus-proces)
@@ -175,13 +174,13 @@ Onderstaande figuur geeft enkele mogelijke combinaties van `R`, `W` en `X` en hu
 
 ### Page faults
 
-Wanneer we een virtueel adres of pagina aanspreken en ons niet aan de access control regels geëncodeerd in de page table entry houden, treedt een *page fault exception* op.
+Wanneer we een virtueel adres of pagina aanspreken en ons niet houden aan de access control regels geëncodeerd in de page table entry, treedt een *page fault exception* op.
 
 Een *exception* in hardware zorgt ervoor dat de huidige programma-executie onderbroken wordt.
-De processor switcht naar van modus en springt naar een vast adres in de code van de kernel.
+De processor switcht van modus en springt naar een vast adres in de code van de kernel.
 De code op dit adres noemen we de *trap handler*.
 
-> :information_source: Merk op dat ook de `ecall`-instructie uit vorige oefenzitting ervoor zorgde dat er naar de *trap handler* gesprongen werd. Deze trap handler moet dus bepalen wat de reden is van de trap.
+> :information_source: Merk op dat ook de `ecall`-instructie uit vorige oefenzitting ervoor zorgde dat er naar de *trap handler* gesprongen werd. Daarnaast is het ook mogelijk dat naar de trap handler gesprongen wordt als gevolg van een interrupt. De trap handler moet dus bepalen wat de reden is van de trap.
 
 De meesten van jullie zullen onbewust al een exception hebben veroorzaakt, door een bug in jullie code.
 xv6 zal in dat geval het falende proces meteen beëindigen.
@@ -202,18 +201,14 @@ Stel dat je springt naar een willekeurig adres in de virtuele adresruimte van je
 
 **TODO** Oefening die fault veroorzaakt hier?
 
-Page faults kunnen ten slotte dus ook optreden op het moment dat de MMU een virtuele adres probeert te vertalen maar een bepaalde page table entry niet gevonden wordt.
+Page faults kunnen ten slotte dus ook optreden op het moment dat de MMU een virtueel adres probeert te vertalen maar een bepaalde page table entry niet gevonden wordt.
 De pagina is op dat moment dus niet gemapt.
-
-Bepaalde schema's zoals *demand paging* zullen pagina's pas mappen nadat de pagina is aangesproken.
-Ze vangen de *page fault* op, mappen de betrokken pagina (indien mogelijk) en hervatten de executie van het proces.
-xv6 heeft geen demand paging.
-
+Het besturingssysteem zou op dat moment kunnen beslissen om alsnog een pagina te mappen (zie *demand paging* in je boek).
 
 # Address spaces in xv6
 
 Genoeg over page tables.
-Laten we eens op een hoger niveau kijken hoe dit alles door xv6 gebruikt wordt om de kernel en processen eigen adresruimten toe te kennen.
+Laten we eens op een hoger niveau kijken hoe dit alles door xv6 gebruikt wordt om aan de kernel en processen eigen adresruimten toe te kennen.
 
 ## Kernel address space
 
@@ -221,24 +216,29 @@ In hoofdstuk 3 van het xv6 boek kwamen we de volgende figuur tegen:
 
 ![kernel-address-space](img/xv6-kernel-address-space.png)
 
+De functie [`kvmmake`][kvmmake] roept `mappages` op (via `kvmmap`) om de address space van de kernel op te bouwen.
+
+* Bekijk de functie [`kvmmake`][kvmmake]. Deze code zou ondertussen begrijpbaar moeten zijn.
+
+Dankzij `kvmmake` zijn de page tables van de kernel geïnitialiseerd zodat de virtuele adresruimte van de kernel bovenstaande structuur volgt.
 Op het moment dat code in de kernel uitvoert, wijst het `satp`-register naar de top-level page table van de kernel.
-Hierdoor worden adressen vertaald zoals afgebeeld op bovenstaande afbeelding.
+Hierdoor worden adressen vertaald zoals afgebeeld.
 
 Zo zie je dat de code (`text`-sectie) van de kernel ingeladen is op adres `0x80000000`.
 De pagina's met code zijn gemapt als read/execute.
-Je kan de code van de kernel dus niet overschrijven (tenzij je eerst de page tables aanpast).
 Net boven de code wordt de `data`-sectie (globale variabelen) van de kernel gemapt.
 
 ### Identity mapping
 
-Deze mapping is speciaal en volgt een identity mapping.
+De mapping van de kernel heeft een speciale structuur.
+De kernel code en data volgen een identity mapping.
 Elk fysisch adres wordt gemapt op hetzelfde overeenkomstige virtueel adres.
 Hiermee bedoelen we: virtueel adres `0x80000000` wordt gemapt op fysisch adres `0x80000000`.
 Virtueel adres `0x80000001` wordt gemapt of fysisch adres `0x80000001`, enzovoort.
 
 Er is een belangrijke reden om deze mapping op deze manier uit te voeren.
-De code om paginatabellen te bewerken zit in de text section van de kernel.
-Deze code moet continu schrijven naar fysieke adressen.
+De code om paginatabellen te bewerken bevindt zich in de text section van de kernel.
+Deze code moet voortdurend kunnen schrijven naar fysieke adressen.
 Door de identity map werk je in feite rechtstreeks met fysieke adressen, waardoor page table code veel eenvoudiger geschreven kan worden.
 De code die page tables bewerkt in xv6 zou niet werken zonder deze identity map.
 
@@ -249,7 +249,7 @@ Deze stack wordt gebruikt als *call stack* op het moment dat een proces switcht 
 
 Tussen elke kernel stack vind je een *guard page*.
 Dit is meteen een interessante toepassing van virtual memory.
-De grootte van een per-process kernel stack wordt door xv6 gelimiteerd tot 1 pagina.
+De grootte van de process kernel stack wordt door xv6 gelimiteerd tot 1 pagina.
 Indien een stack groter wordt dan het gealloceerde geheugen spreken we over een *stack overflow*.
 Zonder bescherming tegen een *stack overflow* zou dit ervoor kunnen zorgen dat de stack kritische kerneldata overschrijft.
 
@@ -257,35 +257,23 @@ Om te detecteren wanneer een xv6 kernel stack vol is, wordt de pagina boven de s
 Wanneer je probeert te schrijven naar een unmapped pagina krijg je een page fault.
 Op die manier kan een stack overflow automatisch gedetecteerd en vermeden worden.
 
-### Opbouw kernel address space in xv6
-
-De functie [`kvmmake`][kvmmake] roept `mappages` op (via `kvmmap`) om de address space van de kernel op te bouwen.
-
-* Bekijk de functie [`kvmmake`][kvmmake]. Deze code zou ondertussen begrijpbaar moeten zijn.
-
 ## Process address space
 
 Op het moment dat een proces in user-mode uitvoert zorgt de kernel ervoor dat het `satp`-register wijst naar de top-level page table van het huidige proces.
-Zo zorgen we ervoor dat wanneer een user-space programma naar een virtueel adres aanspreekt, dit vertaald wordt naar een eerder gekozen fysieke locatie in het geheugen.
 Elk proces heeft zo een eigen virtuele adresruimte.
 
 Ook voor processen kiest xv6 een vaste layout om deze adresruimte op te delen:
 
 ![xv6 process address space](img/xv6-process-address-space.png)
 
-Ieder proces krijgt een eigen pagina gealloceerd om de *call stack* van het programma te bewaren.
-Onder deze stackpagina wordt, net zoals in de kernel, een guard pagina geplaatst die niet gemapt wordt in het geheugen, om stack overflows te detecteren.
+Ieder proces krijgt een eigen pagina gealloceerd om de *call stack* van het programma in te bewaren.
+Onder deze stackpagina wordt, net zoals in de kernel, een guard pagina geplaatst die niet gemapt wordt in het geheugen, zodat stack overflows gededecteerd kunnen worden.
 
 De code van een proces wordt in xv6 gemapt op virtueel adres 0, dus op de eerste pagina in de virtuele adresruimte.
 Deze code kan één of meerdere pagina's groot zijn.
 Boven de code (op hogere addressen) wordt de global data van het proces gemapt.
 
-> :information_source: We hebben xv6 reeds aangepast zodat de text-sectie en de data-secties elk op eigen pagina's gemapt worden. Dit wordt niet gereflecteerd in de figuur. Door deze aanpassing is het voor ons mogelijk om bepaalde secties (bvb .rodata) read-only te mappen. Dat zou niet mogelijk zijn indien code en data pagina's zouden delen.
-
 ### Security
-
-De laatste vraag die we stelden is rechtstreeks gerelateerd aan het concept security.
-Om veiligheidsredenen is het zeer belangrijk dat een proces enkel toegang heeft tot zijn eigen geheugen.
 
 Indien een user-space proces zou kunnen schrijven naar het geheugen van de kernel, zou dit rampzalig zijn.
 Eender welk onschuldig, geïnstalleerd programma zou je besturingssysteem kunnen aanpassen en vervolgens je volledige machine kunnen overnemen.
@@ -299,7 +287,7 @@ Zo kan je browser niet aan de inhoud van je password manager, enzovoort.
 
 # Levenscyclus proces
 
-In deze sectie gaan we dieper in op de impact van `fork`, `exec` en `sbrk` op de page tables van een proces.
+In deze sectie gaan we dieper in op de impact van `fork`, `exec` en `sbrk` op de geheugenmappings van een proces.
 
 ## Pagetables inspecteren
 
