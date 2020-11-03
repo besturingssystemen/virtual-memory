@@ -84,7 +84,7 @@ Onderstaande figuur, uit hoofdstuk 2 van het xv6-boek, toont de virtual memory l
 
 Een pagina die in de virtuele adresruimte van ieder xv6-proces geladen wordt, is de *trampoline*. 
 In een toekomstige sessie gaan we in detail bekijken waarom deze pagina daar gemapt staat.
-Op dit moment in de sessie zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
+Vandaag zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
 
 Neem aan dat:
 1. De trampolinepagina in het geheugen gemapt staat in de frame met nummer 1234 (`PPN` = 1234).
