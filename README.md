@@ -17,7 +17,7 @@ In deze oefenzitting leren jullie over virtual memory.
     - [Security](#security)
 - [Levenscyclus proces](#levenscyclus-proces)
   - [Pagetables inspecteren](#pagetables-inspecteren)
-  - [fork](#fork)
+  - [fork en exec](#fork-en-exec)
   - [Proces mappings veiliger maken](#proces-mappings-veiliger-maken)
 - [Permanente evaluatie: VDSO](#permanente-evaluatie-vdso)
 - [Bonus: Null pointer exception](#bonus-null-pointer-exception)
@@ -310,25 +310,26 @@ Alhoewel je zeker niet elk detail hoeft te begrijpen, is het nuttig om de implem
   Probeer elke mapping te begrijpen en kijk zeker naar de `mode` en `perms` velden.
 - Maak een programma dat `vmprintmappings` oproept voor en na een oproep naar `sbrk(1)`.
   Verklaar het verschil in de outputs.
-- Maak een programma dat `fork` gebruikt om een child proces te maken en vervolgens `vmprintmappings` oproept in parent en child.
+
+## fork en exec
+
+In de [sessie over os interfaces](https://github.com/besturingssystemen/os-interfaces) hebben jullie in de permanente evaluatie ontdekt dat wanneer een proces geforked wordt, je plots twee processen hebt met *dezelfde* adressen maar toch mogelijks andere waarden op deze adressen.
+
+* Verklaar dit aan de hand van je kennis over virtual memory
+* Maak een programma dat `fork` gebruikt om een child proces te maken en vervolgens `vmprintmappings` oproept in parent en child.
   Verklaar de output.
   (Hint: gebruik `wait` in de parent om te wachten tot het child klaar is met uitvoeren om te voorkomen dat de outputs van `vmprintmappings` door elkaar geprint worden.)
 - Bekijk nu het effect van `exec` op de mappings.
   Roep `vmprintmappings` voor de oproep naar `exec` en ook in het programma dat je met `exec` uitvoert.
 
-## fork
-
-In de [sessie over os interfaces](https://github.com/besturingssystemen/os-interfaces) hebben jullie in de permanente evaluatie ontdekt dat wanneer een proces geforked wordt, je plots twee processen hebt met *dezelfde* adressen maar toch mogelijks andere waarden op deze adressen.
-
-* Verklaar dit aan de hand van je kennis over virtual memory
-* Schrijf een simpel programma dat fork uitvoert en vervolgens `vmprintmappings` oproept in het `child` en `parent` proces
-
-Geïnteresseerden kunnen [hier](fork/README.md) een uitgebreide uitleg vinden over de xv6 implementatie van fork.
+> :information_source: Geïnteresseerden kunnen [hier](fork/README.md) een uitgebreide uitleg vinden over de xv6 implementatie van fork.
 
 
 ## Proces mappings veiliger maken
 
-In sectie 3.8 van het xv6 boek wordt uitgelegd hoe `exec` secties uit een ELF file in het geheugen laadt via [`uvmalloc`][uvmalloc]. Een gedetailleerde uitleg over exec/ELF kan je ook [hier](exec/README.md) terugvinden.
+In sectie 3.8 van het xv6 boek wordt uitgelegd hoe `exec` secties uit een ELF file in het geheugen laadt via [`uvmalloc`][uvmalloc]. 
+
+> :information_source: Een gedetailleerde uitleg over exec/ELF kan je ook [hier](exec/README.md) terugvinden.
 
 
 We gaan dit nu wat meer in detail bekijken via het volgende programma (in `hello.c`):
