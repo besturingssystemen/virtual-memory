@@ -196,11 +196,22 @@ Stel dat je springt naar een willekeurig adres in de virtuele adresruimte van je
 
   * Welke excepties uit bovenstaande tabel kunnen optreden? Merk op dat page faults niet de enige vorm van exceptions zijn.
 
-**TODO** Oefening die fault veroorzaakt hier?
-
 Page faults kunnen ten slotte dus ook optreden op het moment dat de MMU een virtueel adres probeert te vertalen maar een bepaalde page table entry niet gevonden wordt.
 De pagina is op dat moment dus niet gemapt.
 Het besturingssysteem zou op dat moment kunnen beslissen om alsnog een pagina te mappen (zie *demand paging* in je boek).
+
+  * Voer het onderstaande C-programma uit in xv6. Welke fout krijg je en waarom?
+
+```c
+ #include "user/user.h"
+ #include "kernel/riscv.h"
+ int main()
+ {
+     int* p = (int*) MAXVA;
+     printf("%d", *p);
+     return 0;
+ } 
+```
 
 # Address spaces in xv6
 
