@@ -60,10 +60,7 @@ Onderstaande voorstelling vinden we terug in de [RISC-V privileged specification
 
 ![Sv39-scheme](img/sv39-virtual-address.png)
 
-* Neem een stuk papier en geef antwoord op de volgende vragen.
-
-> :bulb: Op het einde van deze sectie kunnen jullie de antwoorden op deze vragen terugvinden. Dit is echter een zelftest om te kijken of je de concepten goed snapt. Door meteen naar de antwoorden te kijken zal je voor jezelf niet kunnen ontdekken welke delen nog onduidelijk zouden zijn. Indien je begrip van de concepten onvoldoende is zal je waarschijnlijk in de problemen komen bij de permanente evaluatie.
-
+Neem een stuk papier en geef antwoord op de volgende vragen.
 
 * Wat is het bereik van virtuele adressen in Sv39 (`[minimale adres, maximale adres]`)?
 
