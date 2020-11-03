@@ -313,7 +313,7 @@ Deze syscall zal alle geldige mappings van het oproepende proces afprinten in he
 {va} -> {pa}, mode={U|S}, perms={r|-}{w|-}{x|-}
 </pre>
 
-Hier is `va` het virtuele adres van een page, `pa` het fysieke adres vet het overeenkomende frame.
+Hier is `va` het virtuele adres van een page, `pa` het fysieke adres van het overeenkomende frame.
 `mode` is `U` voor een user page of `S` voor een supervisor (kernel) page.
 `perms` toont de permissie flags voor de pagina: readable (`r`), writable (`w`), en executable (`x`).
 Elk veldje bevat een `-` als de permissie niet gezet is.
@@ -392,10 +392,10 @@ Program Headers:
 </pre>
 
 Je kan zien dat er twee secties zijn die in het geheugen geladen moeten worden (type `LOAD`):
-- Op virtueel adres 0x0 (`VirtAddr`), een sectie die 0x89a bytes groot is in het geheugen (`MemSiz`).
+- Op virtueel adres `0x0` (`VirtAddr`), een sectie die `0x89a` bytes groot is in het geheugen (`MemSiz`).
   De permissies op deze sectie (`Flags`) zijn read (`R`) en execute (`E`).
-  Dit is de sectie die de code en constantes zoals string literals bevat.
-- Op virtueel adres 0x1000, een read-write (`RW`) sectie die 0x28 bytes groot is.
+  Dit is de sectie die de code en constanten zoals string literals bevat.
+- Op virtueel adres `0x1000`, een read-write (`RW`) sectie die `0x28` bytes groot is.
   Dit is de data sectie die globale variabelen bevat.
 
 En laten we dan eens kijken hoe deze executable in het geheugen geladen wordt:
@@ -425,7 +425,7 @@ Om dit eens uit te testen, kan je het volgende stukje code toevoegen _voor_ de o
 
 Deze code zal de waarde `0x8082` (de hexadecimale voorstelling van de `jr ra` (`ret`) instructie in RISC-V) naar het adres van de `print_message` functie schrijven.
 Het resultaat is dus dat de functie meteen returnt zonder het bericht af te printen.
-Op de meeste besturingssystemen zal dit niet werken en zal het programma crashen door een _segmentation fault_ (of iets gelijkaardigs).
+Op de meeste besturingssystemen zal dit niet werken en zal het programma crashen door een _segmentation fault_ (of iets gelijkaardigs) veroorzaakt door een page fault.
 Je kan dit eens proberen op Linux bijvoorbeeld.
 Aangezien de code in xv6 writable gemapt is, gaat dit daar _wel_ werken.
 Controleer dit door het aangepaste programma uit te voeren.
@@ -466,14 +466,14 @@ De kernel groepeert een aantal veel gebruikte variabelen in een page en mapt dez
 Dit zorgt ervoor dat processen de waarden van deze variabelen kunnen lezen (maar niet schrijven!) zonder een syscall uit te voeren.
 
 We gaan nu een gelijkaardig mechanisme implementeren in xv6 om de `ticks` variabele leesbaar te maken in user space.
-Aangezien mappings per pagina gemaakt worden, moeten we ervoor zorgen dat de `ticks` variabele alleen op een pagina staat (zodat we niet _meer_ dan nodig leesbaar maken in user space).
+Aangezien mappings per pagina gemaakt worden, moeten we ervoor zorgen dat de `ticks` variabele alleen op een pagina staat (zodat we niet _meer dan nodig_ leesbaar maken in user space).
 We doen dit in twee stappen:
 1. We zorgen ervoor dat `ticks` in een specifieke linker sectie genaam `.vdso` geplaatst wordt.
    GCC biedt hiervoor het [`section`][GCC section] attribuut aan dat op de volgende manier gebruikt kan worden:
    ```c
    uint ticks __attribute__((section(".vdso")));
    ```
-   Er zal dus een linker sectie `.vdso` genereerd worden waar enkel de `ticks` variabele in zit.
+   Er zal dus een linker sectie `.vdso` gegenereerd worden waar enkel de `ticks` variabele in zit.
 1. We passen het linkerscript ([`kernel/kernel.ld`][kernel.ld]) aan dat gebruikt wordt om de kernel te linken.
    Een linkerscript is een beschrijving van hoe de executable die de linker gaat maken er uit moet zien.
    Voeg de volgende code toe net _voor_ de lijn met `PROVIDE(end = .);`:
@@ -490,10 +490,11 @@ We doen dit in twee stappen:
     (De geïnteresseerden kunnen voor meer informatie de [manual][ld scripts] over linkerscripts lezen.)
     Het resultaat is dat de kernel executable een output sectie heeft die:
     1. Begint en eindigt op een page boundary (en exact 1 page groot is);
-    1. Alle sectties genaamd `.vdso` bevat (in ons geval dus enkel de `ticks` variabele);
+    1. Alle secties genaamd `.vdso` bevat (in ons geval dus enkel de `ticks` variabele);
     1. Een symbool genaamd `_vdso_start` definieert dat verwijst naar het begin van de sectie.
 
 Dit is een goed moment om eens te controleren of de kernel nog werkt.
+Om zeker te zijn dat de kernel volledig opnieuw gecompileerd en gelinkt wordt, voer je best eerst `make clean` uit.
 
 Jullie opdracht bestaat nu uit het volgende:
 1. Map de page die de `.vdso` sectie bevat in elk user proces op dezelfde locatie.
@@ -502,7 +503,7 @@ Jullie opdracht bestaat nu uit het volgende:
        extern char _vdso_start[];
        ```
     1. Een mogelijke plek om dit te implementeren, is in de functie [`proc_pagetable`][proc_pagetable] die de initiële mappings voor een proces aanmaakt.
-       Kijk zeker naar hoe de mapping voor de trampoline aangemaakt worden.
+       Kijk zeker naar hoe de mapping voor de trampoline aangemaakt wordt.
     1. Kies zelf een logisch virtueel adres voor de mapping.
     1. Zorg ervoor dat de page read-only gemapt wordt.
 1. Maak nu een functie in user space genaamd `fastuptime` die de waarde van de variabele `ticks` uitleest uit de gemapte page en returnt.
@@ -539,6 +540,10 @@ Om ervoor te zorgen dat deze fouten gedetecteerd kunnen worden, zullen Linux-dis
 xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toegankelijk. Dat is in feite een zeer slechte beslissing, want zo is het veel lastiger fouten te vinden in C-code (in plaats van een exception krijg je willekeurge data, waarschijnlijk de bytecode van een functie, bij het uitlezen van adres 0).
 
 * **Bonusoefening (moeilijk):** Pas xv6 aan zodat je een exception krijgt wanneer het adres 0 wordt gedereferenced.
+  Let op, adres 0 mag ook niet uitvoerbaar zijn (om problemen met null functionpointers te detecteren).
+  Met andere woorden, virtueel adres 0 mag helemaal niet gemapt zijn.
+
+  Hint: bekijk de [lus die ELF secties inlaadt][exec load loop] in de [`exec`][exec] functie.
 
 > :information_source: Gebruik het forum voor hulp!
 
