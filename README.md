@@ -5,6 +5,10 @@ In deze oefenzitting leren jullie over virtual memory.
 - [Introductie](#introductie)
 - [Pagina mappen](#pagina-mappen)
   - [Page tables in xv6 en RISC-V](#page-tables-in-xv6-en-risc-v)
+  - [Structuur page table](#structuur-page-table)
+    - [Bitvoorstellling PTE](#bitvoorstellling-pte)
+    - [Access control](#access-control)
+    - [Page faults](#page-faults)
 - [Verschillende adresruimten](#verschillende-adresruimten)
   - [Inter-process isolatie](#inter-process-isolatie)
   - [Kernel isolatie](#kernel-isolatie)
@@ -44,7 +48,9 @@ Daarnaast kan je:
 
 # Introductie
 
-**TODO**
+In deze sessie gaan we dieper in op het concept virtual memory.
+We kijken hoe paging werkt en hoe dit gebruikt wordt om virtual memory te implementeren.
+Vervolgens bekijken we enkele wijdverspreide toepassingen van virtual memory.
 
 # Pagina mappen
 
@@ -54,8 +60,7 @@ Herinnner je dat een virtueel adres in een RISC-V processor die het Sv39 schema 
 
 Onderstaande voorstelling vinden we terug in de [RISC-V privileged specification](https://riscv.org/technical/specifications/):
 
-**TODO** Betere screenshot (zonder physical address)
-![Sv39-scheme](img/sv39-addresses.png)
+![Sv39-scheme](img/sv39-virtual-address.png)
 
 * Neem een stuk papier en geef antwoord op de volgende vragen.
 
@@ -96,22 +101,117 @@ Je moet nu, als besturingssysteem, ervoor zorgen dat wanneer het nieuwe proces `
 
 > :bulb: De vraag kan ook zo gesteld worden: hoe kan een besturingssysteem de trampolinepagina mappen op frame 1234?
 
-**TODO** Time box warning
+> :warning: Indien je na 30 minuten in de oefenziting nog niet klaar bent met deze sectie, roep dan zeker een assistent om je verder te helpen.
 
 ## Page tables in xv6 en RISC-V
 
-> :information_source: Het mappen van pagina's door het correct alloceren en invullen van page's gebeurt uiteraard ook in de xv6 code. Deze code is helaas weinig illustratief. Voor de geïnteresseerden geven we [hier](page-table-code/README.md) meer uitleg. Volg echter eerst de rest van de oefenzitting.
+In xv6 worden pagina's gemapt met behulp van de functie `mappages`.
+Dit is de definitie van deze functie:
 
-Page tables volgen een zeer specifieke structuur waarin elke bit een eigen betekenis heeft, zodat de RISC-V Memory Management Unit (MMU) deze efficiënt in hardware kan doorlopen.
+```c
+// Create PTEs for virtual addresses starting at va that refer to
+// physical addresses starting at pa. va and size might not
+// be page-aligned. Returns 0 on success, -1 if walk() couldn't
+// allocate a needed page-table page.
+int
+mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm);
+```
 
-**TODO** Bitvoorstelling PTE en flags bespreken
+> :information_source: De implementatie van mappages vergt veel uitleg en leert ons weinig nieuwe informatie. Voor de geïnteresseerden geven we [hier](page-table-code/README.md) deze uitleg. Volg echter eerst de rest van de oefenzitting.
 
 
-**TODO** Introduceer de mappages functiedefinitie
 
 Stel dat je de trampolinepagina zou moeten mappen met behulp van de functie [`mappages`][mappages].
 
   * Welke waarden zou je toekennen aan de parameters `va` en `size`?
+
+## Structuur page table
+
+Page tables volgen een zeer specifieke structuur waarin elke bit een eigen betekenis heeft, zodat de RISC-V Memory Management Unit (MMU) deze efficiënt in hardware kan doorlopen.
+
+### Bitvoorstellling PTE
+
+Een page table kan je in het geheugen telkens terugvinden in het begin van een frame.
+Elke page table bestaat uitsluitend uit 512 page table entries (PTE).
+Een page table entry is niets anders dan een lange bitstring (32 bits) waarbij elke bit (of groep van bits) een eigen betekenis heeft.
+
+Beantwoordt de volgende vragen:
+
+* We weten dat een page table 512 entries heeft en we weten dat elke entry 32 bit groot is. Hoe groot is een volledige page table?
+* We weten dat we een offset van 12 bit gebruiken om een byte in een frame of pagina te addresseren. Hoe groot zijn pagina's of frames in Sv32?
+* We weten dat een page table geplaatst wordt aan de start van een frame. Past een page table in één enkele frame?
+
+
+
+![sv39 page table entry](img/sv39-pte.png)
+
+Bovenstaande figuur geeft de bit-layout weer van zo'n page table entry.
+
+> :information_source: Zoals je ziet worden bits genummerd van rechts naar links.  [Hier](https://stackoverflow.com/questions/23551187/why-bits-are-numbered-from-right-to-left) kan je een goede verklaring vinden. Dit is een conventie die zo goed als altijd toegepast wordt. De meest rechtse bit wordt ook vaak de LSB (least significant bit) genoemd, aangezien deze bit het minste gewicht heeft. De meest linkse bit wordt vaak de MSB (most significant bit) genoemd, deze heeft het meeste gewicht. 
+
+Laten we de verschillende bits van een page table entry verder bespreken:
+
+* `PPN`: Bits 10 - 31 zijn de 21 bits die naar een frame verwijzen. Ze bevatten dus het frame nummer (*physical page number*, PPN)
+* `U`: Bit 4 is de user bit. Een pagina kan enkel in user-mode gebruikt worden indien de `U`-bit actief is.
+* `X`: Bit 3 is de executable bit. Indien een pagina code bevat kan deze enkel uitgevoerd worden indien de `X`-bit van deze pagina actief is.
+* `W`: Bit 2 is de writeable bit. Data kan enkel naar een pagina geschreven worden indien `W` actief is.
+* `R`: Bit 1 is de readable bit. Data kan enkel van een pagina gelezen worden indien `R` actief is.
+* `V`: Bit 0 is de valid bit. Enkel indien deze bit actief is, wordt de gehele page table entry als geldig beschouwd. Alle voorgaande bits hebben enkel een betekenis indien `V` actief is. Om een pagina te *unmappen* is het dus voldoende om `V` op 0 te zetten.
+
+> :information_source: Enkele minder relevante bits voor de geïnteresseerden: 
+> * `RSW`: Bits 8 - 9 mogen door een besturingssysteem gebruikt worden op een manier naar keuze. Ze worden door de MMU genegeerd. xv6 gebruikt deze bits niet.
+> * `D`, `A`: Bit 7 is de dirty bit, bit 6 de accessed bit. De dirty bit houdt bij of een pagina gelezen, geschreven of opgehaald werd sinds de laatste keer dat de accesed bit op 0 werd gezet. Deze bits worden gebruikt om het cachen en swappen van pagina's efficiënter te laten verlopen. Voor meer infomatie verwijzen we jullie naar Silberschatz (8.4.1 Basic Page Replacement of zoek in je termen-index naar de dirty bit).
+> * `G`: Bit 5 is de *global mapping* bit. Page tables worden per proces gealloceerd. Het is echter mogelijk om bepaalde page tables te delen tussen *alle* processen. Indien je de `G` bit in dat geval actief maakt kan de processor betere performantie leveren. Deze page tables zou je bijvoorbeeld permanent in een cache geladen kunnen houden.
+
+### Access control
+
+Bij de bespreking van de bitvoorstelling van een page table entry is duidelijk geworden dat paging niet uitsluitend gebruikt wordt om adressen te vertalen.
+Het vertalingsproces wordt ook gebruikt om aan access control te doen.
+
+Zo kan de kernel bepaalde pagina's ontoegankelijk maken voor een user-space proces, door de `U`-bit op 0 (inactief) te zetten.
+Pagina's kunnen read-only gemaakt worden door `R` te activeren en `W` en `X` te deactiveren.
+
+Onderstaande figuur geeft enkele mogelijke combinaties van `R`, `W` en `X` en hun betekenis:
+
+![rwx encoding](img/rwx-encoding.png)
+
+
+### Page faults
+
+Wanneer we een virtueel adres of pagina aanspreken en ons niet aan de access control regels geëncodeerd in de page table entry houden, treedt een *page fault exception* op.
+
+Een *exception* in hardware zorgt ervoor dat de huidige programma-executie onderbroken wordt.
+De processor switcht naar van modus en springt naar een vast adres in de code van de kernel.
+De code op dit adres noemen we de *trap handler*.
+
+> :information_source: Merk op dat ook de `ecall`-instructie uit vorige oefenzitting ervoor zorgde dat er naar de *trap handler* gesprongen werd. Deze trap handler moet dus bepalen wat de reden is van de trap.
+
+De meesten van jullie zullen onbewust al een exception hebben veroorzaakt, door een bug in jullie code.
+xv6 zal in dat geval het falende proces meteen beëindigen.
+Vervolgens print xv6, via de trap handler, de reden van de exception.
+Hier enkele mogelijkheden:
+
+> :information_source: De onderstaande tabel is enkel geldig indien een exception optreedt die in supervisor mode kan worden afgehandeld. Sommige exceptions worden afgehandeld in machine mode, daarvoor kan je een andere tabel vinden in de [RISC-V specificaties](https://riscv.org/technical/specifications/).
+
+![Supervisor exception codes](img/supervisor-exception-codes.png)
+
+
+Denk nu terug aan de eerste oefenzitting. 
+Je schreef een hello world programma met een simpele return uit main.
+`crt0` was nog niet toegevoegd, dus de `jr ra` instructie sprong naar een waarde in `ra` die nergens geïnitialiseerd was.
+Stel dat je springt naar een willekeurig adres in de virtuele adresruimte van je proces.
+
+  * Welke excepties uit bovenstaande tabel kunnen optreden? Merk op dat page faults niet de enige vorm van exceptions zijn.
+
+**TODO** Oefening die fault veroorzaakt hier?
+
+Page faults kunnen ten slotte dus ook optreden op het moment dat de MMU een virtuele adres probeert te vertalen maar een bepaalde page table entry niet gevonden wordt.
+De pagina is op dat moment dus niet gemapt.
+
+Bepaalde schema's zoals *demand paging* zullen pagina's pas mappen nadat de pagina is aangesproken.
+Ze vangen de *page fault* op, mappen de betrokken pagina (indien mogelijk) en hervatten de executie van het proces.
+xv6 heeft geen demand paging.
+
 
 # Verschillende adresruimten
 
@@ -271,7 +371,6 @@ Alle niet-inlined todo's:
 
 **TODO** Identity map op gepaste plaats bespreken
 
-**TODO** Page faults bespreken (evt met oefening, cause register, kan bij de .rodata exercise evt)
 
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
 [mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
