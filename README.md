@@ -83,7 +83,7 @@ Onderstaande figuur, uit hoofdstuk 2 van het xv6-boek, toont de virtual memory l
 ![xv6-virtual-layout](img/xv6-virtual-layout.png)
 
 Een pagina die in de virtuele adresruimte van ieder xv6-proces geladen wordt, is de *trampoline*. 
-In deze sessie gaan we in detail bekijken waarom deze pagina daar gemapt staat. 
+In een toekomstige sessie gaan we in detail bekijken waarom deze pagina daar gemapt staat.
 Op dit moment in de sessie zijn we echter nog niet geinteresseerd in *wat* de trampolinepagina doet, wel in *hoe* de trampolinepagina gemapt wordt.
 
 Neem aan dat:
