@@ -1,7 +1,5 @@
 # Page tables in xv6
 
-**TODO** Kijken of alles aansluit na move uit main assignment
-
 xv6 gebruikt een hoop [C preprocessor](https://en.wikipedia.org/wiki/C_preprocessor) definities om deze page tables correct te initialiseren en bewerken. In de header [`kernel/riscv.h`][riscv] worden vele van deze preprocessor functies gedefinieerd. 
 De geïnteresseerden kunnen eens een kijkje nemen in deze header.
 We gaan hier verder niet dieper op in.
@@ -54,8 +52,6 @@ In de `else` branch van de for-loop kan je zien hoe een paginatabel wordt aangem
 Elke bit van de frame van de page table wordt eerst op 0 gezet met behulp van `memset`.
 Je hebt nu een lege page table.
 
-> :bulb: Een lege page table in RISC-V bestaat enkel uit 0-bits.
-
 Vervolgens moet de verwijzing naar deze nieuwe lege page table nog aan de vorige page table worden toegevoegd.
 Dat gebeurt door het fysieke adres van de zonet gealloceerde page table om te zetten naar een frame-nummer met `PA2PTE`.
 
@@ -77,9 +73,6 @@ if(*pte & PTE_V)
 ```
 
 > :information_source: Een bitwise AND-operatie kan gebruikt worden om te controleren of een bepaalde bit van een binair getal `1` is. Stel dat we willen controleren dat bit 2  (geteld van rechts naar links) van een willekeurig binair getal `b` op `1` staat. We stellen nu het volgende binaire getal op: `0000000010` (`1` op positie 2). Overtuig jezelf dat indien `b & 0000000010` niet gelijk is aan `0`, `b` een `1` heeft op positie 2.
-
-We hebben nu een zicht op hoe page tables gemapt worden in de code van xv6.
-Tijd om te kijken hoe dit alles gebruikt wordt.
 
 [vm]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c
 [mappages]: https://github.com/besturingssystemen/xv6-riscv/blob/d4cecb269f2acc61cc1adc11fec2aa690b9c553b/kernel/vm.c#L138
