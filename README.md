@@ -319,7 +319,7 @@ In de [sessie over os interfaces](https://github.com/besturingssystemen/os-inter
 * Maak een programma dat `fork` gebruikt om een child proces te maken en vervolgens `vmprintmappings` oproept in parent en child.
   Verklaar de output.
   (Hint: gebruik `wait` in de parent om te wachten tot het child klaar is met uitvoeren om te voorkomen dat de outputs van `vmprintmappings` door elkaar geprint worden.)
-- Bekijk nu het effect van `exec` op de mappings.
+* Bekijk nu het effect van `exec` op de mappings.
   Roep `vmprintmappings` voor de oproep naar `exec` en ook in het programma dat je met `exec` uitvoert.
 
 > :information_source: Geïnteresseerden kunnen [hier](fork/README.md) een uitgebreide uitleg vinden over de xv6 implementatie van fork.
