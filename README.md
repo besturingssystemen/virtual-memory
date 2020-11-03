@@ -329,8 +329,7 @@ In de [sessie over os interfaces](https://github.com/besturingssystemen/os-inter
 
 In sectie 3.8 van het xv6 boek wordt uitgelegd hoe `exec` secties uit een ELF file in het geheugen laadt via [`uvmalloc`][uvmalloc]. 
 
-> :information_source: Een gedetailleerde uitleg over exec/ELF kan je ook [hier](exec/README.md) terugvinden.
-
+> :information_source: Een gedetailleerde uitleg over ELF-files kan je ook [hier](elf/README.md) terugvinden.
 
 We gaan dit nu wat meer in detail bekijken via het volgende programma (in `hello.c`):
 
