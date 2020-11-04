@@ -259,7 +259,7 @@ De code die page tables bewerkt in xv6 zou niet werken zonder deze identity map.
 
 ### Kernel stacks
 
-De kernel reserveert voor ieder proces een eigen *kernel stack*
+De kernel reserveert voor ieder proces een eigen *kernel stack*.
 Deze stack wordt gebruikt als *call stack* op het moment dat een proces switcht naar supervisor-mode, bijvoorbeeld als gevolg van een `ecall` of een *exception*.
 
 Tussen elke kernel stack vind je een *guard page*.
@@ -439,8 +439,8 @@ We gaan dus code toevoegen om de flags van een mapping aan te passen en gelijk t
   ```c
   void vmsetflags(pagetable_t pagetable, uint64 va, uint64 len, uint flags)
   ```
-  Deze functie moeten voor alle pagina's in het interval `[va, va + len)` de flags van de PTE op `flags` zetten.
-    - Gebruik [`walk`][walk] om de PTE voor een virtueel adres te krijgen.
+  Deze functie moet voor alle pagina's in het interval `[va, va + len)` de flags van de PTE op `flags` zetten.
+    - Gebruik [`walk`][walk] om de PTE van een virtueel adres te krijgen.
     - De constante [`PTE_FLAGS_MASK`][PTE_FLAGS_MASK] kan gebruikt worden om de flag bits in een PTE te masken.
       Je kan de volgende code gebruiken om de flags te overschrijven (hoe werkt dit?):
       ```c
