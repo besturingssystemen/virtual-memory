@@ -55,6 +55,7 @@ Indien `make qemu` ervoor zorgt dat xv6 opstart, is je repository correct geclon
 # gdb
 
 Het programma `gdb`, de GNU debugger, kan gebruikt worden om stap voor stap de machinecode van een gecompileerd programma uit te voeren. De versie van `gdb` die geïnstalleerd is in Linux zal echter niet werken voor RISC-V. Op Toledo hebben we een `.deb`-bestand geplaatst waarmee je een versie van `gdb` kan installeren die kan gebruikt worden om xv6 te debuggen.
+Zie [hier][gdb installation] voor uitgebreidere installatie instructies.
 
 
 # Introductie
@@ -586,3 +587,4 @@ xv6 doet dit echter niet. In xv6 staat er code op adres 0. Adres 0 is gewoon toe
 [kernel.ld]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/kernel.ld
 [ld scripts]: https://sourceware.org/binutils/docs/ld/Scripts.html
 [proc_pagetable]: https://github.com/besturingssystemen/xv6-riscv/blob/720a130ceafcc55ec3624b47e8a1368f3f5f00ae/kernel/proc.c#L162
+[gdb installation]: https://github.com/besturingssystemen/klaarzetten-werkomgeving#gdb
