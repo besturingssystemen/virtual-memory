@@ -2,6 +2,7 @@ In deze oefenzitting leren jullie over virtual memory.
 
 - [Voorbereiding](#voorbereiding)
 - [GitHub classroom](#github-classroom)
+- [gdb](#gdb)
 - [Introductie](#introductie)
 - [Pagina mappen](#pagina-mappen)
   - [Page tables in xv6 en RISC-V](#page-tables-in-xv6-en-risc-v)
@@ -50,6 +51,11 @@ De submissie van de permanente evaluatie zal gebeuren via GitHub classroom.
 Wanneer je een e-mail krijgt van GitHub dat je repository klaar is, moet je deze clonen naar je eigen machine. Dit kan enkele minuten duren.
 
 Indien `make qemu` ervoor zorgt dat xv6 opstart, is je repository correct gecloned.
+
+# gdb
+
+Het programma `gdb`, de GNU debugger, kan gebruikt worden om stap voor stap de machinecode van een gecompileerd programma uit te voeren. De versie van `gdb` die geïnstalleerd is in Linux zal echter niet werken voor RISC-V. Op Toledo hebben we een `.deb`-bestand geplaatst waarmee je een versie van `gdb` kan installeren die kan gebruikt worden om xv6 te debuggen.
+
 
 # Introductie
 
@@ -262,15 +268,17 @@ De code die page tables bewerkt in xv6 zou niet werken zonder deze identity map.
 De kernel reserveert voor ieder proces een eigen *kernel stack*.
 Deze stack wordt gebruikt als *call stack* op het moment dat een proces switcht naar supervisor-mode, bijvoorbeeld als gevolg van een `ecall` of een *exception*.
 
-Tussen elke kernel stack vind je een *guard page*.
+Rond elke kernel stack vind je *guard pages*.
 Dit is meteen een interessante toepassing van virtual memory.
 De grootte van de process kernel stack wordt door xv6 gelimiteerd tot 1 pagina.
 Indien een stack groter wordt dan het gealloceerde geheugen spreken we over een *stack overflow*.
 Zonder bescherming tegen een *stack overflow* zou dit ervoor kunnen zorgen dat de stack kritische kerneldata overschrijft.
+Een stack kan ook *underflowen*.
+Wanneer je bijvoorbeeld een element popt van een lege stack zal de stack pointer buiten het stackgeheugen wijzen.
 
-Om te detecteren wanneer een xv6 kernel stack vol is, wordt de pagina boven de stack niet gemapt.
+Om te detecteren wanneer een xv6 kernel stack overflowt of underflowt, worden de pagina's rond de stack niet gemapt.
 Wanneer je probeert te schrijven naar een unmapped pagina krijg je een page fault.
-Op die manier kan een stack overflow automatisch gedetecteerd en vermeden worden.
+Op die manier kunnen stack overflows en stack underflows automatisch gedetecteerd en vermeden worden.
 
 ## Process address space
 
@@ -283,6 +291,8 @@ Ook voor processen kiest xv6 een vaste layout om deze adresruimte op te delen:
 
 Ieder proces krijgt een eigen pagina gealloceerd om de *call stack* van het programma in te bewaren.
 Onder deze stackpagina wordt, net zoals in de kernel, een guard pagina geplaatst die niet gemapt wordt in het geheugen, zodat stack overflows gededecteerd kunnen worden.
+
+> :warning: Merk op dat *boven* de stack in user space geen guard pagina te vinden is. Dat wil zeggen dat een xv6 user-space proces wel kan underflowen in het heap-geheugen. Het zou beter zijn ook hier een guard pagina te plaatsen.
 
 De code van een proces wordt in xv6 gemapt op virtueel adres 0, dus op de eerste pagina in de virtuele adresruimte.
 Deze code kan één of meerdere pagina's groot zijn.
@@ -453,6 +463,9 @@ We gaan dus code toevoegen om de flags van een mapping aan te passen en gelijk t
   Vergeet zeker niet de `PTE_V` en `PTE_U` flags te zetten!
 
 Verifieer je implementatie via de `vmprintmappings` syscall.
+
+> :information_source: In deze oefening moeten we bepaalde bits in page table entries aanpassen. Om met bitvoorstellingen van getallen te werken in C gebruiken we de bitwise operatoren zoals `&` (AND), `|` (OR) en `~` (NOT). Voor meer informatie kan je [hier](https://en.wikipedia.org/wiki/Bitwise_operations_in_C) terecht.
+
 
 # Permanente evaluatie
 
