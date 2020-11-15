@@ -518,6 +518,7 @@ Jullie opdracht bestaat nu uit het volgende:
        ```
     1. Een mogelijke plek om dit te implementeren, is in de functie [`proc_pagetable`][proc_pagetable] die de initiële mappings voor een proces aanmaakt.
        Kijk zeker naar hoe de mapping voor de trampoline aangemaakt wordt.
+       Vergeet ook niet te kijken hoe de trampolinepagina op het einde van het proces unmapped wordt.
     1. Kies zelf een logisch virtueel adres voor de mapping.
     1. Zorg ervoor dat de page read-only gemapt wordt.
 1. Maak nu een functie in user space genaamd `fastuptime` die de waarde van de variabele `ticks` uitleest uit de gemapte page en returnt.
