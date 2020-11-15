@@ -446,7 +446,7 @@ In de [lus die de ELF secties laadt][exec load loop], wordt [`uvmalloc`][uvmallo
 Het probleem is dat `uvmalloc` elke sectie als `rwx` mapt.
 We gaan dus code toevoegen om de flags van een mapping aan te passen en gelijk te stellen aan de flags van de overeenkomstige ELF sectie.
 
-- Implementeer de volgende functie in `vm.c`:
+- Implementeer de volgende functie in `vm.c` (en voeg de functiedefinitie toe in `defs.h`):
   ```c
   void vmsetflags(pagetable_t pagetable, uint64 va, uint64 len, uint flags)
   ```
