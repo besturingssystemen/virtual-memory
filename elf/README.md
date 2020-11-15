@@ -19,7 +19,8 @@ In `ELF`-bestanden worden programma's opgedeeld in verschillende secties. Enkele
 * ...
 
 Elk van deze secties moeten in het geheugen geladen worden om een proces op te starten.
-Een *loader* neemt als invoer een ELF-bestand en laadt de verschillende secties in het geheugen.
+Meer bepaald, de secties worden samengevoegd in segmenten, ook beschreven in het ELF-bestand.
+Een *loader* neemt als invoer een ELF-bestand en laadt de verschillende segmenten in het geheugen.
 Een loader zet dus als het ware een programma, beschreven in een ELF-bestand, om in een proces dat kan uitvoeren binnen een besturingssysteem.
 
 Naast secties bevat een ELF-bestand ook een *symbol table*. De symbol table bevat informatie over de inhoud van een ELF-bestand, bijvoorbeeld welke functies gedefinieerd zijn in het ELF-bestand en op welke (relatieve) locatie je deze kan terugvinden.
@@ -72,7 +73,7 @@ objdump -d hello-world | less
 
 ### ELF in xv6
 
-We bekijken nu de ELF-files van xv6. ELF-files van xv6 zijn niet rechtstreeks uit te voeren binnen je Linux-omgeving. De ELF-files zijn namelijk gegenereerd voor de RISC-V ISA en bevatten dus enkel RISC-V instructies. 
+We bekijken nu de ELF-files van xv6. ELF-files van xv6 zijn niet rechtstreeks uit te voeren binnen je Linux-omgeving. De ELF-files zijn namelijk gegenereerd voor de RISC-V ISA en bevatten dus enkel RISC-V instructies.
 
 De programma's `objdump` en `readelf` zijn in Linux gecompileerd voor de specifieke ISA van je processor. Deze programma's kunnen dus niet rechtstreeks gebruikt worden om de ELF-files van xv6 te bekijken.
 
